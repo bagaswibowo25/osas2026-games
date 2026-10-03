@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Geeko Memory Match</title>
+<link rel="stylesheet" href="shared/base.css">
+<style>
+.board {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-auto-rows: minmax(110px, 1fr);
+  gap: clamp(10px, 1.6vw, 16px);
+}
+.card {
+  border-radius: 16px;
+  border: 2px solid var(--line);
+  background: var(--panel);
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 48px;
+  font-weight: 700;
+  padding: 12px;
+  display: flex; align-items: center; justify-content: center;
+  text-align: center; line-height: 1.2;
+  transition: background .15s, transform .15s;
+}
+.card.up { color: var(--ink); font-size: clamp(18px, 2.4vw, 26px); }
+.card.up.tool { background: var(--paper); border-color: var(--paper); }
+.card.up.does { background: var(--teal); border-color: var(--teal); font-family: var(--sans); font-size: clamp(17px, 2.2vw, 24px); }
+.card.matched { background: var(--green) !important; border-color: var(--green) !important; }
+.card:active { transform: scale(.97); }
+@media (max-width: 600px) { .board { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div>
+      <div class="eyebrow">openSUSE Asia Summit 2026</div>
+      <h1>Geeko Memory Match</h1>
+    </div>
+    <div class="stats" id="stats" hidden>
+      <div class="pill"><span id="moves">0</span> moves</div>
+      <div class="pill" id="timer">1:00</div>
+    </div>
+  </header>
+
+  <section class="screen" id="ready">
+    <div class="ready">
+      <div class="intro">
+        <p class="lead">Flip two cards at a time. Match each openSUSE tool with what it does.</p>
+        <p class="sub">6 pairs, 60 seconds.</p>
+        <button class="btn-primary" id="start">Start</button>
+      </div>
+      <div class="prizes">
+        <h2>Prizes</h2>
+        <div class="row"><span>All pairs in 40 s or less</span><strong>Pin + sticker</strong></div>
+        <div class="row"><span>All pairs before time runs out</span><strong>Sticker pack</strong></div>
+        <div class="row"><span>Time ran out</span><strong>Candy</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="play" hidden>
+    <div class="board" id="board"></div>
+  </section>
+
+  <section class="screen" id="done" hidden>
+    <div class="done">
+      <div class="result" id="result"></div>
+      <div class="label">Your prize</div>
+      <div class="prize" id="prize"></div>
+      <p class="hint">Show this screen to the booth crew.</p>
+      <button class="btn-ghost" id="again">Next player</button>
+    </div>
+  </section>
+</main>
+<script src="shared/game.js"></script>
+<script>
+(function () {
+  const { $, shuffle, show, countdown, finish } = Booth;
+  const SECONDS = 60;
+  const PAIRS = [
+    { id: 'zypper', tool: 'zypper', does: 'Install packages' },
+    { id: 'yast', tool: 'YaST', does: 'Configure the system' },
+    { id: 'snapper', tool: 'Snapper', does: 'Roll back with snapshots' },
+    { id: 'obs', tool: 'Open Build Service', does: 'Build packages for many distros' },
+    { id: 'tw', tool: 'Tumbleweed', does: 'Rolling release' },
+    { id: 'leap', tool: 'Leap', does: 'Stable, regular releases' }
+  ];
+
+  let cards, open, matched, moves, timer, flipBack;
+  const board = $('#board');
+
+  function render() {
+    board.querySelectorAll('.card').forEach((el, i) => {
+      const c = cards[i];
+      const isM = matched.includes(c.pair);
+      const up = isM || open.includes(i);
+      el.className = 'card' + (up ? ' up ' + c.kind : '') + (isM ? ' matched' : '');
+      el.textContent = up ? c.text : '?';
+      el.setAttribute('aria-label', up ? c.text : 'Hidden card ' + (i + 1));
+    });
+    $('#moves').textContent = moves;
+  }
+
+  function end(won) {
+    timer.stop();
+    clearTimeout(flipBack);
+    const used = timer.used();
+    let prize = 'Candy';
+    if (won && used <= 40) prize = 'Pin + sticker';
+    else if (won) prize = 'Sticker pack';
+    finish(won
+      ? 'All ' + PAIRS.length + ' pairs in ' + used + ' s, ' + moves + ' moves'
+      : 'Time’s up. You found ' + matched.length + ' of ' + PAIRS.length + ' pairs.', prize);
+  }
+
+  function flip(i) {
+    if (open.length >= 2 || open.includes(i) || matched.includes(cards[i].pair)) return;
+    open.push(i);
+    if (open.length === 2) {
+      moves += 1;
+      const [a, b] = open;
+      if (cards[a].pair === cards[b].pair) {
+        matched.push(cards[a].pair);
+        open = [];
+        if (matched.length === PAIRS.length) { render(); end(true); return; }
+      } else {
+        flipBack = setTimeout(() => { open = []; render(); }, 800);
+      }
+    }
+    render();
+  }
+
+  function start() {
+    cards = shuffle(PAIRS.flatMap((p) => [
+      { pair: p.id, text: p.tool, kind: 'tool' },
+      { pair: p.id, text: p.does, kind: 'does' }
+    ]));
+    open = []; matched = []; moves = 0;
+    board.innerHTML = '';
+    cards.forEach((_, i) => {
+      const b = document.createElement('button');
+      b.className = 'card';
+      b.addEventListener('click', () => flip(i));
+      board.appendChild(b);
+    });
+    render();
+    show('play');
+    timer = countdown(SECONDS, () => end(false));
+  }
+
+  $('#start').addEventListener('click', start);
+  $('#again').addEventListener('click', () => show('ready'));
+})();
+</script>
+</body>
+</html>

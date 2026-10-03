@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Command or Not?</title>
+<link rel="stylesheet" href="shared/base.css">
+<style>
+.stage { flex: 1; display: flex; flex-direction: column; gap: 24px; }
+.word-box {
+  flex: 1; min-height: 220px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+  border-radius: 24px; background: var(--panel); padding: 32px;
+}
+.word { font-family: var(--mono); font-size: clamp(36px, 7vw, 72px); font-weight: 700; color: var(--paper); text-align: center; overflow-wrap: anywhere; }
+.feedback { min-height: 34px; font-size: clamp(18px, 2.4vw, 26px); font-weight: 600; text-align: center; }
+.feedback.ok { color: var(--green); }
+.feedback.bad { color: var(--warn); }
+.answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.answers button { min-height: 120px; border: 0; border-radius: 20px; color: var(--ink); font-size: clamp(26px, 3.4vw, 36px); font-weight: 800; }
+.answers button:active { transform: scale(.98); }
+#real { background: var(--green); }
+#fake { background: var(--paper); }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div>
+      <div class="eyebrow">openSUSE Asia Summit 2026</div>
+      <h1>Command or Not?</h1>
+    </div>
+    <div class="stats" id="stats" hidden>
+      <div class="pill"><span id="score">0</span> correct</div>
+      <div class="pill" id="timer">0:30</div>
+    </div>
+  </header>
+
+  <section class="screen" id="ready">
+    <div class="ready">
+      <div class="intro">
+        <p class="lead">A word appears. Is it a real Linux command, or did we make it up?</p>
+        <p class="sub">Answer as many as you can in 30 seconds.</p>
+        <button class="btn-primary" id="start">Start</button>
+      </div>
+      <div class="prizes">
+        <h2>Prizes</h2>
+        <div class="row"><span>12 or more correct</span><strong>Pin + sticker</strong></div>
+        <div class="row"><span>7 to 11 correct</span><strong>Sticker pack</strong></div>
+        <div class="row"><span>Under 7</span><strong>Candy</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="play" hidden>
+    <div class="stage">
+      <div class="word-box">
+        <div class="word">$ <span id="word"></span></div>
+        <div class="feedback" id="feedback" aria-live="polite"></div>
+      </div>
+      <div class="answers">
+        <button id="real">Real command</button>
+        <button id="fake">Made up</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="done" hidden>
+    <div class="done">
+      <div class="result" id="result"></div>
+      <div class="label">Your prize</div>
+      <div class="prize" id="prize"></div>
+      <p class="hint">Show this screen to the booth crew.</p>
+      <button class="btn-ghost" id="again">Next player</button>
+    </div>
+  </section>
+</main>
+<script src="shared/game.js"></script>
+<script>
+(function () {
+  const { $, shuffle, show, countdown, finish } = Booth;
+  const SECONDS = 30;
+  const WORDS = [
+    { w: 'zypper', real: true, note: 'openSUSE’s package manager' },
+    { w: 'snapper', real: true, note: 'manages Btrfs snapshots' },
+    { w: 'transactional-update', real: true, note: 'atomic updates on MicroOS' },
+    { w: 'journalctl', real: true, note: 'reads systemd logs' },
+    { w: 'firewall-cmd', real: true, note: 'configures firewalld' },
+    { w: 'osc', real: true, note: 'Open Build Service command line' },
+    { w: 'lsblk', real: true, note: 'lists block devices' },
+    { w: 'rpm', real: true, note: 'low-level package tool' },
+    { w: 'zypperctl', real: false, note: 'made up. The real one is zypper' },
+    { w: 'geekoctl', real: false, note: 'made up' },
+    { w: 'tumblectl', real: false, note: 'made up' },
+    { w: 'yastify', real: false, note: 'made up. The real one is yast2' },
+    { w: 'rpmgrab', real: false, note: 'made up' },
+    { w: 'btrfs-undo', real: false, note: 'made up. Rollbacks use snapper' },
+    { w: 'snapperize', real: false, note: 'made up' },
+    { w: 'chameleon-sync', real: false, note: 'made up' }
+  ];
+
+  let deck, idx, score, answered, timer, playing = false;
+  const fb = $('#feedback');
+
+  function paintWord() { $('#word').textContent = deck[idx].w; }
+
+  function answer(saysReal) {
+    if (!playing) return;
+    const cur = deck[idx];
+    const ok = cur.real === saysReal;
+    if (ok) score += 1;
+    answered += 1;
+    fb.textContent = (ok ? 'Correct. ' : 'Nope. ') + cur.w + ': ' + cur.note;
+    fb.className = 'feedback ' + (ok ? 'ok' : 'bad');
+    idx += 1;
+    if (idx >= deck.length) { deck = shuffle(WORDS.slice()); idx = 0; }
+    $('#score').textContent = score;
+    paintWord();
+  }
+
+  function end() {
+    playing = false;
+    let prize = 'Candy';
+    if (score >= 12) prize = 'Pin + sticker';
+    else if (score >= 7) prize = 'Sticker pack';
+    finish(score + ' correct out of ' + answered + ' answered', prize);
+  }
+
+  function start() {
+    deck = shuffle(WORDS.slice());
+    idx = 0; score = 0; answered = 0; playing = true;
+    fb.textContent = ''; fb.className = 'feedback';
+    $('#score').textContent = 0;
+    paintWord();
+    show('play');
+    timer = countdown(SECONDS, end);
+  }
+
+  $('#start').addEventListener('click', start);
+  $('#real').addEventListener('click', () => answer(true));
+  $('#fake').addEventListener('click', () => answer(false));
+  $('#again').addEventListener('click', () => show('ready'));
+})();
+</script>
+</body>
+</html>

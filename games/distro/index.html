@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Distro Match</title>
+<link rel="stylesheet" href="shared/base.css">
+<style>
+.columns { flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(16px, 8vw, 96px); }
+.col { display: flex; flex-direction: column; gap: 12px; }
+.col h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; color: var(--muted); }
+.item {
+  min-height: 68px; flex: 1;
+  border-radius: 14px; border: 2px solid var(--line);
+  background: var(--panel); color: #FFFFFF;
+  font-size: clamp(20px, 2.6vw, 28px); font-weight: 700;
+  text-align: left; padding: 0 clamp(14px, 2vw, 24px);
+  transition: background .15s;
+}
+.item.pm { font-family: var(--mono); }
+.item.sel { background: var(--teal); border-color: var(--teal); color: var(--ink); }
+.item.wrong { background: var(--warn); border-color: var(--warn); color: var(--ink); }
+.item.matched { background: var(--green); border-color: var(--green); color: var(--ink); }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div>
+      <div class="eyebrow">openSUSE Asia Summit 2026</div>
+      <h1>Distro Match</h1>
+    </div>
+    <div class="stats" id="stats" hidden>
+      <div class="pill"><span id="count">0</span>/6 matched</div>
+      <div class="pill" id="timer">0:45</div>
+    </div>
+  </header>
+
+  <section class="screen" id="ready">
+    <div class="ready">
+      <div class="intro">
+        <p class="lead">Tap a distro, then tap its package manager.</p>
+        <p class="sub">6 pairs, 45 seconds.</p>
+        <button class="btn-primary" id="start">Start</button>
+      </div>
+      <div class="prizes">
+        <h2>Prizes</h2>
+        <div class="row"><span>All 6 with no mistakes</span><strong>Pin + sticker</strong></div>
+        <div class="row"><span>All 6 before time runs out</span><strong>Sticker pack</strong></div>
+        <div class="row"><span>Time ran out</span><strong>Candy</strong></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="play" hidden>
+    <div class="columns">
+      <div class="col"><h2>Distro</h2><div class="col" id="left"></div></div>
+      <div class="col"><h2>Package manager</h2><div class="col" id="right"></div></div>
+    </div>
+  </section>
+
+  <section class="screen" id="done" hidden>
+    <div class="done">
+      <div class="result" id="result"></div>
+      <div class="label">Your prize</div>
+      <div class="prize" id="prize"></div>
+      <p class="hint">Show this screen to the booth crew.</p>
+      <button class="btn-ghost" id="again">Next player</button>
+    </div>
+  </section>
+</main>
+<script src="shared/game.js"></script>
+<script>
+(function () {
+  const { $, shuffle, show, countdown, finish } = Booth;
+  const SECONDS = 45;
+  const PAIRS = [
+    { id: 'suse', d: 'openSUSE', pm: 'zypper' },
+    { id: 'deb', d: 'Debian', pm: 'apt' },
+    { id: 'fed', d: 'Fedora', pm: 'dnf' },
+    { id: 'arch', d: 'Arch Linux', pm: 'pacman' },
+    { id: 'alp', d: 'Alpine', pm: 'apk' },
+    { id: 'gen', d: 'Gentoo', pm: 'emerge' }
+  ];
+
+  let sel, wrong, matched, mistakes, timer, flash;
+  const leftCol = $('#left'), rightCol = $('#right');
+
+  function render() {
+    leftCol.querySelectorAll('.item').forEach((el) => {
+      const id = el.dataset.id;
+      el.classList.toggle('matched', matched.includes(id));
+      el.classList.toggle('sel', sel === id);
+      el.setAttribute('aria-pressed', sel === id ? 'true' : 'false');
+    });
+    rightCol.querySelectorAll('.item').forEach((el) => {
+      const id = el.dataset.id;
+      el.classList.toggle('matched', matched.includes(id));
+      el.classList.toggle('wrong', wrong === id);
+    });
+    $('#count').textContent = matched.length;
+  }
+
+  function end(won) {
+    timer.stop();
+    clearTimeout(flash);
+    let prize = 'Candy';
+    if (won && mistakes === 0) prize = 'Pin + sticker';
+    else if (won) prize = 'Sticker pack';
+    finish(won
+      ? 'All 6 in ' + timer.used() + ' s with ' + mistakes + (mistakes === 1 ? ' mistake' : ' mistakes')
+      : 'Time’s up. You matched ' + matched.length + ' of 6.', prize);
+  }
+
+  function pickLeft(id) {
+    if (matched.includes(id)) return;
+    sel = id;
+    render();
+  }
+
+  function pickRight(id) {
+    if (!sel || matched.includes(id)) return;
+    if (id === sel) {
+      matched.push(id);
+      sel = null;
+      render();
+      if (matched.length === PAIRS.length) end(true);
+    } else {
+      mistakes += 1;
+      wrong = id;
+      render();
+      clearTimeout(flash);
+      flash = setTimeout(() => { wrong = null; render(); }, 500);
+    }
+  }
+
+  function fill(col, ids, label, cls, onPick) {
+    col.innerHTML = '';
+    ids.forEach((id) => {
+      const b = document.createElement('button');
+      b.className = 'item ' + cls;
+      b.dataset.id = id;
+      b.textContent = label(id);
+      b.addEventListener('click', () => onPick(id));
+      col.appendChild(b);
+    });
+  }
+
+  function start() {
+    const byId = Object.fromEntries(PAIRS.map((p) => [p.id, p]));
+    const ids = PAIRS.map((p) => p.id);
+    sel = null; wrong = null; matched = []; mistakes = 0;
+    fill(leftCol, shuffle(ids.slice()), (id) => byId[id].d, 'distro', pickLeft);
+    fill(rightCol, shuffle(ids.slice()), (id) => byId[id].pm, 'pm', pickRight);
+    render();
+    show('play');
+    timer = countdown(SECONDS, () => end(false));
+  }
+
+  $('#start').addEventListener('click', start);
+  $('#again').addEventListener('click', () => show('ready'));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+/* Shared look for the oSAS 2026 booth games (openSUSE palette). */
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('fonts/source-sans-3.woff2') format('woff2');
+  font-weight: 200 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Source Code Pro';
+  src: url('fonts/source-code-pro.woff2') format('woff2');
+  font-weight: 200 900;
+  font-display: swap;
+}
+
+:root {
+  --bg: #173F4F;
+  --panel: #0F2D39;
+  --line: #2E6A7E;
+  --muted: #B9D3C9;
+  --dim: #6E9AA8;
+  --green: #73BA25;
+  --green-hi: #9BD65A;
+  --teal: #35B9AB;
+  --paper: #F4F8EF;
+  --warn: #F4A52B;
+  --ink: #0F2D39;
+  --sans: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'Source Code Pro', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg);
+  color: #FFFFFF;
+  font-family: var(--sans);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+button { font-family: inherit; cursor: pointer; }
+button:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+[hidden] { display: none !important; }
+
+.app {
+  max-width: 1280px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: clamp(16px, 4vw, 40px) clamp(16px, 4vw, 48px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 3vh, 28px);
+}
+
+.top { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.eyebrow { font-size: clamp(14px, 1.6vw, 18px); color: var(--muted); }
+h1 { margin: 4px 0 0; font-size: clamp(28px, 4.2vw, 44px); font-weight: 800; line-height: 1.05; }
+
+.stats { display: flex; gap: 12px; font-family: var(--mono); font-size: clamp(18px, 2.2vw, 24px); font-weight: 700; }
+.pill { padding: 10px 20px; border-radius: 999px; background: var(--panel); white-space: nowrap; }
+.pill.low { background: var(--warn); color: var(--ink); }
+
+.screen { flex: 1; display: flex; flex-direction: column; }
+
+/* Ready screen */
+.ready {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(24px, 5vw, 56px);
+  align-items: center;
+}
+.ready .lead { margin: 0; font-size: clamp(26px, 3.4vw, 38px); line-height: 1.2; font-weight: 600; }
+.ready .sub { margin: 0; font-size: clamp(18px, 2vw, 22px); color: var(--muted); }
+.ready .intro { display: flex; flex-direction: column; gap: 20px; }
+.btn-primary {
+  align-self: flex-start;
+  min-height: 76px;
+  padding: 0 56px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--green);
+  color: var(--ink);
+  font-size: 30px;
+  font-weight: 800;
+}
+.btn-primary:hover { background: var(--green-hi); }
+
+.prizes { display: flex; flex-direction: column; padding: clamp(20px, 3vw, 32px); border-radius: 20px; background: var(--panel); }
+.prizes h2 { margin: 0 0 12px; font-size: 24px; font-weight: 800; }
+.prizes .row {
+  display: flex; justify-content: space-between; gap: 16px;
+  font-size: clamp(18px, 2vw, 22px);
+  padding: 16px 0; border-top: 1px solid var(--line);
+}
+.prizes strong { color: var(--green); text-align: right; }
+
+/* Done screen */
+.done { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; }
+.done .result { font-size: clamp(20px, 2.4vw, 26px); color: var(--muted); }
+.done .label { font-size: 28px; font-weight: 600; }
+.done .prize { font-size: clamp(56px, 9vw, 96px); font-weight: 800; color: var(--green); line-height: 1; }
+.done .hint { margin: 8px 0 0; font-size: 22px; color: var(--muted); }
+.btn-ghost {
+  margin-top: 16px;
+  min-height: 64px;
+  padding: 0 40px;
+  border: 2px solid var(--green);
+  border-radius: 16px;
+  background: transparent;
+  color: #FFFFFF;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+@media (max-width: 760px) {
+  .ready { grid-template-columns: 1fr; align-items: start; }
+  .btn-primary { align-self: stretch; }
+}
