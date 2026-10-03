@@ -88,8 +88,10 @@
     fallback: 'Candy'
   };
   let cfg = DEFAULTS;
+  // 24 real, 24 made up. Made-up names were checked against real tools with
+  // similar names (netctl, pkgctl, updatectl, lsgpu... all exist), so avoid those.
   const WORDS = [
-    { w: 'zypper', real: true, note: 'openSUSE’s package manager' },
+    { w: 'zypper', real: true, note: 'openSUSE\u2019s package manager' },
     { w: 'snapper', real: true, note: 'manages Btrfs snapshots' },
     { w: 'transactional-update', real: true, note: 'atomic updates on MicroOS' },
     { w: 'journalctl', real: true, note: 'reads systemd logs' },
@@ -97,6 +99,22 @@
     { w: 'osc', real: true, note: 'Open Build Service command line' },
     { w: 'lsblk', real: true, note: 'lists block devices' },
     { w: 'rpm', real: true, note: 'low-level package tool' },
+    { w: 'systemctl', real: true, note: 'starts and stops systemd services' },
+    { w: 'hostnamectl', real: true, note: 'shows or sets the hostname' },
+    { w: 'timedatectl', real: true, note: 'sets the clock and time zone' },
+    { w: 'btrfs', real: true, note: 'manages Btrfs filesystems' },
+    { w: 'yast2', real: true, note: 'starts YaST from the shell' },
+    { w: 'dmesg', real: true, note: 'prints kernel messages' },
+    { w: 'lscpu', real: true, note: 'shows CPU details' },
+    { w: 'nmcli', real: true, note: 'NetworkManager command line' },
+    { w: 'systemd-analyze', real: true, note: 'shows what slows down boot' },
+    { w: 'distrobox', real: true, note: 'runs other distros in containers' },
+    { w: 'kiwi-ng', real: true, note: 'builds openSUSE system images' },
+    { w: 'bootctl', real: true, note: 'manages systemd-boot' },
+    { w: 'tac', real: true, note: 'cat backwards: prints lines in reverse' },
+    { w: 'yes', real: true, note: 'prints \u201cy\u201d forever' },
+    { w: 'rev', real: true, note: 'reverses each line' },
+    { w: 'factor', real: true, note: 'prints prime factors of a number' },
     { w: 'zypperctl', real: false, note: 'made up. The real one is zypper' },
     { w: 'geekoctl', real: false, note: 'made up' },
     { w: 'tumblectl', real: false, note: 'made up' },
@@ -104,7 +122,23 @@
     { w: 'rpmgrab', real: false, note: 'made up' },
     { w: 'btrfs-undo', real: false, note: 'made up. Rollbacks use snapper' },
     { w: 'snapperize', real: false, note: 'made up' },
-    { w: 'chameleon-sync', real: false, note: 'made up' }
+    { w: 'chameleon-sync', real: false, note: 'made up' },
+    { w: 'leapctl', real: false, note: 'made up' },
+    { w: 'geeko-update', real: false, note: 'made up. Use zypper up' },
+    { w: 'snaprollback', real: false, note: 'made up. Use snapper rollback' },
+    { w: 'journalview', real: false, note: 'made up. The real one is journalctl' },
+    { w: 'lsram', real: false, note: 'made up. Try free' },
+    { w: 'unzypper', real: false, note: 'made up' },
+    { w: 'rpmify', real: false, note: 'made up' },
+    { w: 'zypper-undo', real: false, note: 'made up. Undo with snapper' },
+    { w: 'chmodx', real: false, note: 'made up. Use chmod +x' },
+    { w: 'diskfree', real: false, note: 'made up. The real one is df' },
+    { w: 'geekofetch', real: false, note: 'made up. Try fastfetch' },
+    { w: 'tumbleweedctl', real: false, note: 'made up' },
+    { w: 'zypper-turbo', real: false, note: 'made up' },
+    { w: 'mkgeeko', real: false, note: 'made up' },
+    { w: 'lsgeeko', real: false, note: 'made up' },
+    { w: 'chameleonctl', real: false, note: 'made up' }
   ];
 
   let deck, idx, score, answered, timer, playing = false;
@@ -121,7 +155,12 @@
     fb.textContent = (ok ? 'Correct. ' : 'Nope. ') + cur.w + ': ' + cur.note;
     fb.className = 'feedback ' + (ok ? 'ok' : 'bad');
     idx += 1;
-    if (idx >= deck.length) { deck = shuffle(WORDS.slice()); idx = 0; }
+    if (idx >= deck.length) {
+      deck = shuffle(WORDS.slice());
+      idx = 0;
+      // don't show the word that was just answered again straight away
+      if (deck[0].w === cur.w) [deck[0], deck[deck.length - 1]] = [deck[deck.length - 1], deck[0]];
+    }
     $('#score').textContent = score;
     paintWord();
   }
