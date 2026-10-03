@@ -24,13 +24,42 @@ deploy/nginx.conf         config nginx di dalam container
 deploy/Caddyfile.snippet  route yang ditambahkan ke Caddyfile.prod ClassQuiz
 ```
 
-Tidak ada backend, database, atau build step. Ubah teks/soal/hadiah langsung di `games/<game>/index.html`
-(konstanta `PAIRS` / `WORDS` / `SECONDS` dan fungsi `end()`).
+Tidak ada backend, database, atau build step. Soal ada di `games/<game>/index.html` (konstanta `PAIRS` / `WORDS`).
+
+## Konfigurasi hadiah
+
+Hadiah, syarat, dan durasi tiap game ada di `config/<game>.json`. Di server, folder ini di-mount ke container,
+jadi cukup edit `~/osas2026-games/config/<game>.json`. Perubahan berlaku saat kru menekan **Next player**
+(atau reload halaman), **tanpa rebuild atau restart**. Kalau JSON-nya rusak, game memakai default bawaan
+(cek console browser).
+
+Format: `tiers` dicek berurutan, tier pertama yang syaratnya terpenuhi yang menang; kalau tidak ada yang cocok
+dapat `fallback`. Teks panel "Prizes" di layar awal dibuat otomatis dari config.
+
+| File | Syarat per tier |
+|---|---|
+| `memory.json` | Semua pasangan ketemu dan `maxSeconds` (detik terpakai ≤ nilai ini). Tanpa `maxSeconds` = asal selesai sebelum waktu habis |
+| `distro.json` | Semua 6 cocok dan `maxMistakes` (salah ≤ nilai ini). Tanpa `maxMistakes` = asal selesai sebelum waktu habis |
+| `command.json` | `minCorrect` (jawaban benar ≥ nilai ini). Diurutkan otomatis dari yang tertinggi |
+
+Contoh: tambah hadiah kaos untuk ≥15 benar di Command or Not:
+
+```json
+{
+  "seconds": 30,
+  "tiers": [
+    { "prize": "Kaos Geeko", "minCorrect": 15 },
+    { "prize": "Pin + sticker", "minCorrect": 12 },
+    { "prize": "Sticker pack", "minCorrect": 7 }
+  ],
+  "fallback": "Candy"
+}
+```
 
 ## Coba lokal
 
 ```bash
-mkdir -p /tmp/g && for g in memory distro command; do mkdir -p /tmp/g/$g && cp -r games/$g/* shared /tmp/g/$g/; done
+mkdir -p /tmp/g && for g in memory distro command; do mkdir -p /tmp/g/$g && cp -r games/$g/* shared config /tmp/g/$g/; done
 python3 -m http.server -d /tmp/g 8000   # buka http://localhost:8000/memory/
 ```
 
@@ -41,8 +70,11 @@ memegang port 80/443, jadi container game **tidak** membuka port sendiri. Mereka
 `classquiz_default` dan Caddy meneruskan path `/games/<game>/` ke container masing-masing.
 
 ```bash
-# 1. kirim kode ke server (repo private, jadi pakai rsync)
-rsync -az --delete --exclude .git ./ aryulianto@quiz.opensuse.id:osas2026-games/
+# 1. kirim kode ke server (repo private, jadi pakai rsync).
+#    config/ dikecualikan agar hadiah yang sudah diedit kru di server tidak tertimpa;
+#    baris kedua hanya menyalin file config yang belum ada di server.
+rsync -az --delete --exclude .git --exclude config/ ./ aryulianto@quiz.opensuse.id:osas2026-games/
+rsync -az --ignore-existing config/ aryulianto@quiz.opensuse.id:osas2026-games/config/
 
 # 2. build & jalankan
 ssh aryulianto@quiz.opensuse.id 'cd osas2026-games && sudo docker compose up -d --build'
@@ -65,6 +97,7 @@ cd ~/osas2026-games
 sudo docker compose ps
 sudo docker compose logs -f memory
 sudo docker compose up -d --build command   # deploy ulang satu game saja
+nano config/command.json                    # ubah hadiah, lalu tekan "Next player" di tablet
 ```
 
 ## Lisensi

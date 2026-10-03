@@ -10,6 +10,10 @@ name: osas2026-games
 x-game: &game
   restart: always
   networks: [classquiz]
+  # Prize config: edit config/<game>.json on the host; picked up on the next
+  # "Next player" / page load, no rebuild or restart needed.
+  volumes:
+    - ./config:/usr/share/nginx/html/config:ro
   healthcheck:
     test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
     interval: 30s

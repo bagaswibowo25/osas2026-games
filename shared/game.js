@@ -46,5 +46,35 @@ window.Booth = (function () {
     $('#again').focus();
   }
 
-  return { $, shuffle, show, countdown, finish };
+  // Prize config lives in config/<game>.json (mounted from the host, editable
+  // without a rebuild). Fetched fresh for every new player; falls back to the
+  // defaults baked into the page if the file is missing or not valid JSON.
+  async function loadConfig(name, defaults) {
+    try {
+      const r = await fetch('config/' + name + '.json', { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return Object.assign({}, defaults, await r.json());
+    } catch (e) {
+      console.warn('config/' + name + '.json not usable, using defaults:', e);
+      return defaults;
+    }
+  }
+
+  // rows: [[condition, prize], ...] for the Prizes panel on the ready screen.
+  function renderPrizes(rows) {
+    const box = $('#prize-rows');
+    box.textContent = '';
+    rows.forEach(([cond, prize]) => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      const s = document.createElement('span');
+      s.textContent = cond;
+      const p = document.createElement('strong');
+      p.textContent = prize;
+      row.append(s, p);
+      box.appendChild(row);
+    });
+  }
+
+  return { $, shuffle, show, countdown, finish, loadConfig, renderPrizes };
 })();

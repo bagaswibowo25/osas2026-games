@@ -1,0 +1,8 @@
+{
+  "seconds": 30,
+  "tiers": [
+    { "prize": "Pin + sticker", "minCorrect": 12 },
+    { "prize": "Sticker pack", "minCorrect": 7 }
+  ],
+  "fallback": "Candy"
+}

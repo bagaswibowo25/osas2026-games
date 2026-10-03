@@ -40,14 +40,12 @@
     <div class="ready">
       <div class="intro">
         <p class="lead">A word appears. Is it a real Linux command, or did we make it up?</p>
-        <p class="sub">Answer as many as you can in 30 seconds.</p>
+        <p class="sub">Answer as many as you can in <span id="secs">30</span> seconds.</p>
         <button class="btn-primary" id="start">Start</button>
       </div>
       <div class="prizes">
         <h2>Prizes</h2>
-        <div class="row"><span>12 or more correct</span><strong>Pin + sticker</strong></div>
-        <div class="row"><span>7 to 11 correct</span><strong>Sticker pack</strong></div>
-        <div class="row"><span>Under 7</span><strong>Candy</strong></div>
+        <div id="prize-rows"></div>
       </div>
     </div>
   </section>
@@ -78,8 +76,17 @@
 <script src="shared/game.js"></script>
 <script>
 (function () {
-  const { $, shuffle, show, countdown, finish } = Booth;
-  const SECONDS = 30;
+  const { $, shuffle, show, countdown, finish, loadConfig, renderPrizes } = Booth;
+  // Overridden by config/command.json. Highest minCorrect reached wins.
+  const DEFAULTS = {
+    seconds: 30,
+    tiers: [
+      { prize: 'Pin + sticker', minCorrect: 12 },
+      { prize: 'Sticker pack', minCorrect: 7 }
+    ],
+    fallback: 'Candy'
+  };
+  let cfg = DEFAULTS;
   const WORDS = [
     { w: 'zypper', real: true, note: 'openSUSE’s package manager' },
     { w: 'snapper', real: true, note: 'manages Btrfs snapshots' },
@@ -120,9 +127,8 @@
 
   function end() {
     playing = false;
-    let prize = 'Candy';
-    if (score >= 12) prize = 'Pin + sticker';
-    else if (score >= 7) prize = 'Sticker pack';
+    const tier = cfg.tiers.find((t) => score >= t.minCorrect);
+    const prize = tier ? tier.prize : cfg.fallback;
     finish(score + ' correct out of ' + answered + ' answered', prize);
   }
 
@@ -133,13 +139,29 @@
     $('#score').textContent = 0;
     paintWord();
     show('play');
-    timer = countdown(SECONDS, end);
+    timer = countdown(cfg.seconds, end);
+  }
+
+  async function ready() {
+    cfg = await loadConfig('command', DEFAULTS);
+    cfg.tiers = cfg.tiers.slice().sort((a, b) => b.minCorrect - a.minCorrect);
+    $('#secs').textContent = cfg.seconds;
+    const rows = cfg.tiers.map((t, i) => [
+      i === 0 ? t.minCorrect + ' or more correct'
+        : t.minCorrect + ' to ' + (cfg.tiers[i - 1].minCorrect - 1) + ' correct',
+      t.prize
+    ]);
+    const lowest = cfg.tiers.length ? cfg.tiers[cfg.tiers.length - 1].minCorrect : null;
+    rows.push([lowest == null ? 'Everyone' : 'Under ' + lowest, cfg.fallback]);
+    renderPrizes(rows);
+    show('ready');
   }
 
   $('#start').addEventListener('click', start);
   $('#real').addEventListener('click', () => answer(true));
   $('#fake').addEventListener('click', () => answer(false));
-  $('#again').addEventListener('click', () => show('ready'));
+  $('#again').addEventListener('click', ready);
+  ready();
 })();
 </script>
 </body>

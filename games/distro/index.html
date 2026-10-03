@@ -40,14 +40,12 @@
     <div class="ready">
       <div class="intro">
         <p class="lead">Tap a distro, then tap its package manager.</p>
-        <p class="sub">6 pairs, 45 seconds.</p>
+        <p class="sub">6 pairs, <span id="secs">45</span> seconds.</p>
         <button class="btn-primary" id="start">Start</button>
       </div>
       <div class="prizes">
         <h2>Prizes</h2>
-        <div class="row"><span>All 6 with no mistakes</span><strong>Pin + sticker</strong></div>
-        <div class="row"><span>All 6 before time runs out</span><strong>Sticker pack</strong></div>
-        <div class="row"><span>Time ran out</span><strong>Candy</strong></div>
+        <div id="prize-rows"></div>
       </div>
     </div>
   </section>
@@ -72,8 +70,18 @@
 <script src="shared/game.js"></script>
 <script>
 (function () {
-  const { $, shuffle, show, countdown, finish } = Booth;
-  const SECONDS = 45;
+  const { $, shuffle, show, countdown, finish, loadConfig, renderPrizes } = Booth;
+  // Overridden by config/distro.json. Tiers apply only when all 6 are matched;
+  // the first tier whose maxMistakes fits wins (no maxMistakes = any number).
+  const DEFAULTS = {
+    seconds: 45,
+    tiers: [
+      { prize: 'Pin + sticker', maxMistakes: 0 },
+      { prize: 'Sticker pack' }
+    ],
+    fallback: 'Candy'
+  };
+  let cfg = DEFAULTS;
   const PAIRS = [
     { id: 'suse', d: 'openSUSE', pm: 'zypper' },
     { id: 'deb', d: 'Debian', pm: 'apt' },
@@ -104,9 +112,8 @@
   function end(won) {
     timer.stop();
     clearTimeout(flash);
-    let prize = 'Candy';
-    if (won && mistakes === 0) prize = 'Pin + sticker';
-    else if (won) prize = 'Sticker pack';
+    const tier = won && cfg.tiers.find((t) => t.maxMistakes == null || mistakes <= t.maxMistakes);
+    const prize = tier ? tier.prize : cfg.fallback;
     finish(won
       ? 'All 6 in ' + timer.used() + ' s with ' + mistakes + (mistakes === 1 ? ' mistake' : ' mistakes')
       : 'Time’s up. You matched ' + matched.length + ' of 6.', prize);
@@ -154,11 +161,25 @@
     fill(rightCol, shuffle(ids.slice()), (id) => byId[id].pm, 'pm', pickRight);
     render();
     show('play');
-    timer = countdown(SECONDS, () => end(false));
+    timer = countdown(cfg.seconds, () => end(false));
+  }
+
+  function tierText(t) {
+    if (t.maxMistakes == null) return 'All 6 before time runs out';
+    if (t.maxMistakes === 0) return 'All 6 with no mistakes';
+    return 'All 6 with at most ' + t.maxMistakes + (t.maxMistakes === 1 ? ' mistake' : ' mistakes');
+  }
+
+  async function ready() {
+    cfg = await loadConfig('distro', DEFAULTS);
+    $('#secs').textContent = cfg.seconds;
+    renderPrizes(cfg.tiers.map((t) => [tierText(t), t.prize]).concat([['Time ran out', cfg.fallback]]));
+    show('ready');
   }
 
   $('#start').addEventListener('click', start);
-  $('#again').addEventListener('click', () => show('ready'));
+  $('#again').addEventListener('click', ready);
+  ready();
 })();
 </script>
 </body>

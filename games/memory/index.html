@@ -51,14 +51,12 @@
     <div class="ready">
       <div class="intro">
         <p class="lead">Flip two cards at a time. Match each openSUSE tool with what it does.</p>
-        <p class="sub">6 pairs, 60 seconds.</p>
+        <p class="sub">6 pairs, <span id="secs">60</span> seconds.</p>
         <button class="btn-primary" id="start">Start</button>
       </div>
       <div class="prizes">
         <h2>Prizes</h2>
-        <div class="row"><span>All pairs in 40 s or less</span><strong>Pin + sticker</strong></div>
-        <div class="row"><span>All pairs before time runs out</span><strong>Sticker pack</strong></div>
-        <div class="row"><span>Time ran out</span><strong>Candy</strong></div>
+        <div id="prize-rows"></div>
       </div>
     </div>
   </section>
@@ -80,8 +78,18 @@
 <script src="shared/game.js"></script>
 <script>
 (function () {
-  const { $, shuffle, show, countdown, finish } = Booth;
-  const SECONDS = 60;
+  const { $, shuffle, show, countdown, finish, loadConfig, renderPrizes } = Booth;
+  // Overridden by config/memory.json. Tiers apply only when every pair is
+  // found; the first tier whose maxSeconds fits wins (no maxSeconds = any time).
+  const DEFAULTS = {
+    seconds: 60,
+    tiers: [
+      { prize: 'Pin + sticker', maxSeconds: 40 },
+      { prize: 'Sticker pack' }
+    ],
+    fallback: 'Candy'
+  };
+  let cfg = DEFAULTS;
   const PAIRS = [
     { id: 'zypper', tool: 'zypper', does: 'Install packages' },
     { id: 'yast', tool: 'YaST', does: 'Configure the system' },
@@ -110,9 +118,8 @@
     timer.stop();
     clearTimeout(flipBack);
     const used = timer.used();
-    let prize = 'Candy';
-    if (won && used <= 40) prize = 'Pin + sticker';
-    else if (won) prize = 'Sticker pack';
+    const tier = won && cfg.tiers.find((t) => t.maxSeconds == null || used <= t.maxSeconds);
+    const prize = tier ? tier.prize : cfg.fallback;
     finish(won
       ? 'All ' + PAIRS.length + ' pairs in ' + used + ' s, ' + moves + ' moves'
       : 'Time’s up. You found ' + matched.length + ' of ' + PAIRS.length + ' pairs.', prize);
@@ -150,11 +157,22 @@
     });
     render();
     show('play');
-    timer = countdown(SECONDS, () => end(false));
+    timer = countdown(cfg.seconds, () => end(false));
+  }
+
+  async function ready() {
+    cfg = await loadConfig('memory', DEFAULTS);
+    $('#secs').textContent = cfg.seconds;
+    renderPrizes(cfg.tiers.map((t) => [
+      t.maxSeconds == null ? 'All pairs before time runs out' : 'All pairs in ' + t.maxSeconds + ' s or less',
+      t.prize
+    ]).concat([['Time ran out', cfg.fallback]]));
+    show('ready');
   }
 
   $('#start').addEventListener('click', start);
-  $('#again').addEventListener('click', () => show('ready'));
+  $('#again').addEventListener('click', ready);
+  ready();
 })();
 </script>
 </body>
