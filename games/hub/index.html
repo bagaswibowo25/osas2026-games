@@ -45,6 +45,18 @@
   background: var(--green); color: var(--ink);
   font-size: 24px; font-weight: 800;
 }
+.chance-pill { padding: 10px 20px; border-radius: 999px; background: var(--panel); font-family: var(--mono); font-size: 20px; font-weight: 700; white-space: nowrap; }
+.foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.switch { min-height: 48px; padding: 0; border: 0; background: none; color: var(--muted); font-size: 18px; font-weight: 600; text-decoration: underline; }
+.switch:hover { color: #FFFFFF; }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 40px 1fr; gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); font-size: clamp(18px, 2vw, 21px); line-height: 1.35; }
+.steps li::before {
+  content: counter(step); width: 32px; height: 32px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--green); color: var(--ink); font-family: var(--mono); font-weight: 700;
+}
+#signin .ready { align-items: start; }
 @media (max-width: 860px) {
   .picks { grid-template-columns: minmax(0, 1fr); align-content: start; }
   .pick { min-height: 0; }
@@ -59,10 +71,39 @@
       <h1>Booth Games</h1>
     </div>
   </header>
+  <section class="screen" id="signin" hidden>
+    <div class="ready">
+      <div class="intro">
+        <p class="lead">Every player wins something. Tell us who you are to start.</p>
+        <div class="fields">
+          <label class="name">Your name<input id="name" maxlength="20" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="next"></label>
+          <label class="name">Instagram username
+            <span class="ig-wrap"><input id="ig" maxlength="31" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" enterkeyhint="go"></span>
+            <small>Only the booth crew sees this, to reach winners. Not shown on the leaderboard.</small>
+          </label>
+        </div>
+        <p class="name-err" id="name-err" role="alert"></p>
+        <button class="btn-primary" id="go">Continue</button>
+        <div class="links"><a class="back" href="leaderboard/">Today’s leaderboard</a></div>
+      </div>
+      <div class="prizes">
+        <h2>How it works</h2>
+        <ol class="steps">
+          <li>Pick any game and play.</li>
+          <li>Happy with your prize? Take it.</li>
+          <li>Want a better one? Play once more, any game. Your first result is dropped.</li>
+          <li>One turn per person: two chances, then your name is done for the day.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="pick" hidden>
   <div class="hub-lead">
-    <p class="lead">Pick a game. Every player wins something.</p>
-    <a class="lb-link" href="leaderboard/">Today’s leaderboard &rarr;</a>
+    <p class="lead">Hi <span id="who"></span>! Pick a game.</p>
+    <span class="chance-pill" id="chance"></span>
   </div>
+  <p class="drop-warn" id="drop-warn" hidden></p>
 
   <nav class="picks" aria-label="Games">
     <a class="pick" href="memory/" data-game="memory">
@@ -96,7 +137,13 @@
       <span class="go">Play</span>
     </a>
   </nav>
+  <div class="foot">
+    <a class="lb-link" href="leaderboard/">Today’s leaderboard &rarr;</a>
+    <button type="button" class="switch" id="switch"></button>
+  </div>
+  </section>
 </main>
+<script src="shared/game.js"></script>
 <script>
 // Fill duration and top prize from each game's live config (set in /games/admin/).
 // The markup above holds the defaults, so the page still reads fine if a fetch fails.
@@ -116,6 +163,57 @@ document.querySelectorAll('.pick').forEach(async (card) => {
 });
 // Refresh when the tablet comes back to this page so prize edits show up.
 window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
+
+// Players sign in here once, then pick games; the game pages read the same session.
+(function () {
+  const { $, register, current, forget } = Booth;
+  const TITLES = { memory: 'Geeko Memory Match', distro: 'Distro Match', command: 'Command or Not?' };
+
+  function signin() {
+    $('#name').value = '';
+    $('#ig').value = '';
+    $('#signin').hidden = false;
+    $('#pick').hidden = true;
+  }
+
+  function picker(p) {
+    $('#who').textContent = p.name;
+    $('#chance').textContent = 'Chance ' + (p.plays + 1) + ' of ' + (p.plays + p.left);
+    const warn = $('#drop-warn');
+    warn.hidden = !p.result;
+    if (p.result) {
+      warn.textContent = 'Last chance. Your result now: ' + p.result.prize + ' (' + TITLES[p.result.game] +
+        '). Starting another game drops it.';
+    }
+    $('#switch').textContent = 'Not ' + p.name + '? Switch player';
+    $('#signin').hidden = true;
+    $('#pick').hidden = false;
+  }
+
+  async function go() {
+    const btn = $('#go');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    $('#name-err').textContent = '';
+    try {
+      const p = await register($('#name').value, $('#ig').value);
+      if (p.left < 1) { forget(); throw new Error('No chances left. Thanks for playing!'); }
+      picker(p);
+    } catch (e) {
+      $('#name-err').textContent = e.message;
+      $(e.field === 'name' ? '#name' : '#ig').focus();
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  $('#go').addEventListener('click', go);
+  $('#name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#ig').focus(); });
+  $('#ig').addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
+  $('#switch').addEventListener('click', () => { forget(); signin(); $('#name').focus(); });
+
+  current().then((p) => (p && p.left > 0 ? picker(p) : signin()));
+})();
 </script>
 </body>
 </html>

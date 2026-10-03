@@ -45,6 +45,19 @@ input:focus { outline: none; border-color: var(--teal); }
 .lb-row .del { min-height: 40px; border-radius: 10px; border: 2px solid var(--line); background: transparent; color: #FFFFFF; font-size: 15px; font-weight: 700; }
 .lb-row .del:hover { border-color: var(--warn); color: var(--warn); }
 .lb-empty { padding: 8px 0; border-top: 1px solid var(--line); color: var(--muted); }
+.pl-tools { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.pl-tools input { max-width: 320px; }
+.pl-sum { color: var(--muted); font-size: 16px; }
+.pl-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 110px minmax(0, 1.4fr) 120px; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 17px; }
+.pl-row .who { font-weight: 700; overflow-wrap: anywhere; }
+.pl-row .ig { font-family: var(--mono); color: var(--muted); overflow-wrap: anywhere; user-select: all; }
+.pl-row .st { font-size: 15px; font-weight: 700; }
+.pl-row .st.open { color: var(--teal); }
+.pl-row .st.closed { color: var(--muted); }
+.pl-row .res { font-size: 15px; color: var(--muted); }
+.pl-row .res strong { color: var(--green); font-size: 17px; }
+.pl-row .del { min-height: 40px; border-radius: 10px; border: 2px solid var(--line); background: transparent; color: #FFFFFF; font-size: 15px; font-weight: 700; }
+.pl-row .del:hover { border-color: var(--warn); color: var(--warn); }
 .status.ok { color: var(--green); }
 .status.err { color: var(--warn); }
 a { color: var(--green); }
@@ -53,6 +66,7 @@ a { color: var(--green); }
   .lb-row { grid-template-columns: 28px minmax(0, 1fr) 80px; }
   .lb-row .ig { grid-column: 2; }
   .lb-row .sc { grid-column: 2; }
+  .pl-row { grid-template-columns: minmax(0, 1fr) 110px; }
 }
 </style>
 </head>
@@ -68,6 +82,21 @@ a { color: var(--green); }
     Players who qualify for none get the fallback prize. Changes reach a tablet the next time someone taps
     <strong>Next player</strong> or reloads the game.</p>
   <div id="games"></div>
+
+  <section class="game" id="pl">
+    <h2>Players</h2>
+    <p class="help">Everyone signs in once on the games page and gets 2 chances across all games. Starting the
+      2nd chance drops the 1st result, so the <strong>prize shown here is what they take home</strong>.
+      A player is <em>done</em> once they took their prize or started their 2nd chance; after that their
+      Instagram and name cannot sign in again. <strong>Allow again</strong> forgets the player and their
+      results (for a typo or a crash), so they can sign in fresh.</p>
+    <div class="pl-tools">
+      <input type="search" id="pl-find" placeholder="Find name or @instagram" aria-label="Find player" autocomplete="off">
+      <span class="pl-sum" id="pl-sum"></span>
+    </div>
+    <div id="pl-list"></div>
+    <span class="status" id="pl-status" role="status"></span>
+  </section>
 
   <section class="game" id="lb">
     <h2>Leaderboard <a href="../leaderboard/" target="_blank" rel="noopener">open</a></h2>
@@ -107,7 +136,7 @@ a { color: var(--green); }
       rule: 'Only players who find every pair win a tier. "Done within" = finished in at most this many seconds; leave it empty for "before time runs out".' },
     { id: 'distro', title: 'Distro Match', key: 'maxMistakes', head: 'Max mistakes',
       optional: true, placeholder: 'any',
-      rule: 'Only players who match all 6 win a tier. "Max mistakes" = at most this many wrong taps; leave it empty for "before time runs out".' },
+      rule: 'Only players who match all 8 win a tier. "Max mistakes" = at most this many wrong taps; leave it empty for "before time runs out".' },
     { id: 'command', title: 'Command or Not?', key: 'minCorrect', head: 'Min correct',
       optional: false, placeholder: '',
       rule: 'A player wins the tier with the highest "Min correct" they reached.' }
@@ -269,17 +298,79 @@ a { color: var(--green); }
   }
 
   document.getElementById('reset').addEventListener('click', async () => {
-    if (!confirm('Reset ALL leaderboards? Every result in all three games is deleted. This cannot be undone.')) return;
+    if (!confirm('Reset ALL leaderboards and players? Every result and every sign-in is deleted, so everyone can play again. This cannot be undone.')) return;
     try {
       const r = await call('api/scores/reset', {});
       lbStatus.textContent = 'Reset: ' + r.deleted + ' results deleted';
       lbStatus.className = 'status ok';
       loadScores();
+      loadPlayers();
     } catch (e) { lbStatus.textContent = 'Not reset: ' + e.message; lbStatus.className = 'status err'; }
   });
 
+  // --- Players ------------------------------------------------------------
+  const TITLES = Object.fromEntries(GAMES.map((g) => [g.id, g.title]));
+  const plStatus = document.getElementById('pl-status');
+  const find = document.getElementById('pl-find');
+  let players = [], maxPlays = 2;
+
+  function renderPlayers() {
+    const box = document.getElementById('pl-list');
+    const q = find.value.trim().replace(/^@/, '').toLowerCase();
+    const shown = players.filter((p) => !q || p.ig.includes(q) || p.name.toLowerCase().includes(q));
+    const done = players.filter((p) => p.closed).length;
+    document.getElementById('pl-sum').textContent =
+      players.length + ' signed in, ' + done + ' done' + (q ? ', ' + shown.length + ' match' : '');
+    box.textContent = '';
+    if (!shown.length) {
+      const e = document.createElement('div');
+      e.className = 'lb-empty';
+      e.textContent = players.length ? 'No match.' : 'No players yet.';
+      box.appendChild(e);
+    }
+    shown.forEach((p) => {
+      const row = document.createElement('div');
+      row.className = 'pl-row';
+      const who = document.createElement('span'); who.className = 'who'; who.textContent = p.name;
+      const ig = document.createElement('a'); ig.className = 'ig'; ig.textContent = '@' + p.ig;
+      ig.href = 'https://instagram.com/' + encodeURIComponent(p.ig); ig.target = '_blank'; ig.rel = 'noopener';
+      const st = document.createElement('span');
+      st.className = 'st ' + (p.closed ? 'closed' : 'open');
+      st.textContent = (p.closed ? 'Done' : 'Playing') + ' · ' + p.plays + '/' + maxPlays;
+      const res = document.createElement('span'); res.className = 'res';
+      if (p.result) {
+        const prize = document.createElement('strong');
+        prize.textContent = p.result.prize || '?';
+        res.append(prize, document.createElement('br'), TITLES[p.result.game] + ': ' + SCORE[p.result.game](p.result));
+      } else {
+        res.textContent = p.plays ? 'No result (left mid-game)' : 'Not played yet';
+      }
+      const del = document.createElement('button');
+      del.type = 'button'; del.className = 'del'; del.textContent = 'Allow again';
+      del.setAttribute('aria-label', 'Allow ' + p.name + ' to play again');
+      del.addEventListener('click', async () => {
+        if (!confirm('Forget "' + p.name + '" (@' + p.ig + ')? Their results are deleted and they can sign in again with 2 new chances.')) return;
+        try { await call('api/players/allow', { ig: p.ig }); loadPlayers(); loadScores(); }
+        catch (e) { plStatus.textContent = 'Not changed: ' + e.message; plStatus.className = 'status err'; }
+      });
+      row.append(who, ig, st, res, del);
+      box.appendChild(row);
+    });
+  }
+
+  async function loadPlayers() {
+    try {
+      const data = await call('api/players');
+      players = data.players; maxPlays = data.max_plays;
+      plStatus.textContent = '';
+      renderPlayers();
+    } catch (e) { plStatus.textContent = 'Could not load: ' + e.message; plStatus.className = 'status err'; }
+  }
+  find.addEventListener('input', renderPlayers);
+
   loadScores();
-  setInterval(loadScores, 15000);
+  loadPlayers();
+  setInterval(() => { loadScores(); loadPlayers(); }, 15000);
 })();
 </script>
 </body>

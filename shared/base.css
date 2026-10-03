@@ -104,6 +104,12 @@ h1 { margin: 4px 0 0; font-size: clamp(28px, 4.2vw, 44px); font-weight: 800; lin
 .name small { font-size: 15px; font-weight: 400; color: var(--dim); }
 .name-err { margin: -8px 0 0; min-height: 24px; font-size: 18px; font-weight: 600; color: var(--warn); }
 .links { display: flex; gap: 24px; flex-wrap: wrap; }
+.player { margin: 0; font-size: clamp(20px, 2.2vw, 24px); color: var(--muted); }
+.player strong { color: #FFFFFF; }
+.drop-warn {
+  margin: 0; padding: 14px 18px; border-radius: 14px;
+  background: var(--warn); color: var(--ink); font-size: 19px; font-weight: 700; line-height: 1.3;
+}
 .done .rank { margin: 0; min-height: 30px; font-size: clamp(20px, 2.4vw, 26px); font-weight: 600; color: #FFFFFF; }
 .back {
   align-self: flex-start;
@@ -138,6 +144,10 @@ h1 { margin: 4px 0 0; font-size: clamp(28px, 4.2vw, 44px); font-weight: 800; lin
   font-size: 24px;
   font-weight: 700;
 }
+.done .chance-note { margin: 0; min-height: 28px; font-size: 20px; color: var(--muted); }
+.done-actions { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.done-actions .btn-primary { align-self: auto; }
+.done-actions .btn-ghost { margin-top: 0; min-height: 76px; }
 
 @media (max-width: 760px) {
   .ready { grid-template-columns: 1fr; align-items: start; }

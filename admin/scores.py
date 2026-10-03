@@ -8,6 +8,11 @@ anything odd from the admin page.
 
 A player is identified by their Instagram username (unique, and what the crew
 uses to reach winners). It is stored but never returned by the public API.
+
+Turns: a player signs in once (name + Instagram) and gets MAX_PLAYS chances
+across all games. Starting the second chance drops the first result. The
+session closes when they take their prize or start their last chance; after
+that neither the Instagram username nor the name can sign in again.
 """
 
 import re
@@ -22,6 +27,7 @@ PAIRS = {"memory": 6, "distro": 8}  # pairs to find for a finished round
 NAME_MAX = 20
 SLACK = 3            # seconds of network/clock slack allowed when comparing times
 MAX_PENDING = 2000   # cap on outstanding start tokens
+MAX_PLAYS = 2        # chances per player, across all games
 
 
 class Rejected(ValueError):
@@ -44,7 +50,20 @@ CREATE TABLE IF NOT EXISTS scores (
   created_at REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS scores_game ON scores (game);
+CREATE INDEX IF NOT EXISTS scores_ig ON scores (ig);
+CREATE TABLE IF NOT EXISTS players (
+  ig TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  name_key TEXT NOT NULL UNIQUE,
+  plays INTEGER NOT NULL DEFAULT 0,
+  closed INTEGER NOT NULL DEFAULT 0,
+  created_at REAL NOT NULL
+);
 """
+# Columns added to scores after the first deploy: which chance it was, whether a
+# later chance dropped it, and the prize it earned (from the config at the time).
+SCORE_COLUMNS = (("attempt", "INTEGER"), ("void", "INTEGER NOT NULL DEFAULT 0"), ("prize", "TEXT"))
+RESULT_FIELDS = ("game", "won", "matched", "moves", "mistakes", "used", "correct", "answered", "prize")
 
 # Sort key per game, lower is better; ties go to whoever got there first.
 RANK = {
@@ -65,6 +84,10 @@ def clean_name(raw):
     if len(name) > NAME_MAX:
         raise Rejected(f"Name can be at most {NAME_MAX} characters")
     return name
+
+
+def name_key(name):
+    return name.casefold()
 
 
 IG_RE = re.compile(r"[a-z0-9._]{1,30}")
@@ -92,34 +115,97 @@ class Scores:
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self.db.executescript(SCHEMA)
-        self.pending = {}  # token -> (game, started_at, seconds)
+        have = {r["name"] for r in self.db.execute("PRAGMA table_info(scores)")}
+        for col, decl in SCORE_COLUMNS:
+            if col not in have:
+                self.db.execute(f"ALTER TABLE scores ADD COLUMN {col} {decl}")
+        self.db.commit()
+        self.pending = {}  # token -> (game, started_at, seconds, ig, attempt)
+
+    # --- players ---------------------------------------------------------
+
+    def _player(self, ig):
+        return self.db.execute("SELECT * FROM players WHERE ig = ?", (ig,)).fetchone()
+
+    def _result(self, ig):
+        """The result that currently counts for this player, or None. Call with the lock held."""
+        r = self.db.execute("SELECT * FROM scores WHERE ig = ? AND void = 0 ORDER BY id DESC LIMIT 1", (ig,)).fetchone()
+        return {k: r[k] for k in RESULT_FIELDS} if r else None
+
+    def _state(self, p):
+        return {"name": p["name"], "ig": p["ig"], "plays": p["plays"],
+                "left": 0 if p["closed"] else MAX_PLAYS - p["plays"], "result": self._result(p["ig"])}
+
+    def register(self, raw_name, raw_ig):
+        """Sign in a new player, or pick up an unfinished session (same Instagram)."""
+        name, ig = clean_name(raw_name), clean_ig(raw_ig)
+        with self.lock:
+            p = self._player(ig)
+            if p is None:
+                if self.db.execute("SELECT 1 FROM players WHERE name_key = ?", (name_key(name),)).fetchone():
+                    raise Rejected(f'The name "{name}" has already played. Add your last name or an initial.')
+                self.db.execute("INSERT INTO players (ig, name, name_key, created_at) VALUES (?, ?, ?, ?)",
+                                (ig, name, name_key(name), time.time()))
+                self.db.commit()
+                p = self._player(ig)
+            elif p["closed"]:
+                raise Rejected(f"@{ig} has already played. It is one turn per person.")
+            return self._state(p)
+
+    def close(self, raw_ig):
+        """The player takes their prize: no more chances, and the name stays used."""
+        ig = clean_ig(raw_ig)
+        with self.lock:
+            p = self._player(ig)
+            if p is None:
+                raise Rejected("unknown player")
+            if p["plays"] < 1:
+                raise Rejected("play a game first")
+            self.db.execute("UPDATE players SET closed = 1 WHERE ig = ?", (ig,))
+            self.db.commit()
+        return {"closed": True}
 
     # --- game flow -------------------------------------------------------
 
-    def start(self, game, seconds):
+    def start(self, game, seconds, raw_ig):
+        ig = clean_ig(raw_ig)
         now = time.time()
         with self.lock:
-            for tok, (_, t0, secs) in list(self.pending.items()):
-                if now - t0 > secs + 120:
+            for tok, entry in list(self.pending.items()):
+                if now - entry[1] > entry[2] + 120:
                     del self.pending[tok]
             if len(self.pending) >= MAX_PENDING:
                 raise Rejected("busy, try again")
+            p = self._player(ig)
+            if p is None:
+                raise Rejected("Please sign in with your name first")
+            if p["closed"] or p["plays"] >= MAX_PLAYS:
+                raise Rejected("No chances left. Thanks for playing!")
+            attempt = p["plays"] + 1
+            # The last chance closes the session right away, and any new chance drops earlier results.
+            self.db.execute("UPDATE players SET plays = ?, closed = ? WHERE ig = ?",
+                            (attempt, int(attempt >= MAX_PLAYS), ig))
+            self.db.execute("UPDATE scores SET void = 1 WHERE ig = ? AND void = 0", (ig,))
+            self.db.commit()
             token = secrets.token_urlsafe(16)
-            self.pending[token] = (game, now, seconds)
-        return token
+            self.pending[token] = (game, now, seconds, ig, attempt)
+        return {"token": token, "attempt": attempt, "left": MAX_PLAYS - attempt}
 
-    def finish(self, game, body):
+    def finish(self, game, body, prize_for=lambda game, row: None):
         token = body.get("token")
         with self.lock:
             entry = self.pending.pop(token, None) if isinstance(token, str) else None
         if not entry or entry[0] != game:
             raise Rejected("unknown or used game token")
-        _, t0, seconds = entry
+        _, t0, seconds, ig, attempt = entry
         elapsed = time.time() - t0
-        name = clean_name(body.get("name"))
-        ig = clean_ig(body.get("ig"))
-        row = {"game": game, "name": name, "ig": ig, "won": 0, "matched": None, "moves": None,
-               "mistakes": None, "used": None, "correct": None, "answered": None, "created_at": time.time()}
+        with self.lock:
+            p = self._player(ig)
+        if p is None:
+            raise Rejected("player was removed by the crew")
+        row = {"game": game, "name": p["name"], "ig": ig, "won": 0, "matched": None, "moves": None,
+               "mistakes": None, "used": None, "correct": None, "answered": None, "created_at": time.time(),
+               "attempt": attempt, "void": 0, "prize": None}
         timed_out = elapsed >= seconds - SLACK
 
         if game in ("memory", "distro"):
@@ -148,20 +234,25 @@ class Scores:
                 raise Rejected("too many answers")
         if elapsed > seconds + 60:
             raise Rejected("game took too long")
+        row["prize"] = prize_for(game, row)
 
         with self.lock:
+            # A later chance already started (should not happen from the tablet): keep it, but dropped.
+            p = self._player(ig)
+            row["void"] = int(p is None or attempt < p["plays"])
             cols = ", ".join(row)
             self.db.execute(f"INSERT INTO scores ({cols}) VALUES ({', '.join('?' * len(row))})", list(row.values()))
             self.db.commit()
             board = self._board(game)
-        rank = next(i for i, r in enumerate(board, 1) if r["ig"] == ig)
-        return {"rank": rank, "players": len(board)}
+            left = 0 if p is None or p["closed"] else MAX_PLAYS - p["plays"]
+        rank = next((i for i, r in enumerate(board, 1) if r["ig"] == ig), None)
+        return {"rank": rank, "players": len(board), "prize": row["prize"], "attempt": attempt, "left": left}
 
     # --- reading ---------------------------------------------------------
 
     def _board(self, game):
         """Best result per player (Instagram username), best first. Call with the lock held."""
-        rows = [dict(r) for r in self.db.execute("SELECT * FROM scores WHERE game = ?", (game,))]
+        rows = [dict(r) for r in self.db.execute("SELECT * FROM scores WHERE game = ? AND void = 0", (game,))]
         rows.sort(key=RANK[game])
         seen, best = set(), []
         for r in rows:
@@ -181,6 +272,23 @@ class Scores:
 
     # --- admin -----------------------------------------------------------
 
+    def players(self):
+        """Every signed-in player, newest first, with the result that currently counts."""
+        with self.lock:
+            out = []
+            for p in self.db.execute("SELECT * FROM players ORDER BY created_at DESC").fetchall():
+                out.append({"name": p["name"], "ig": p["ig"], "plays": p["plays"], "closed": bool(p["closed"]),
+                            "created_at": p["created_at"], "result": self._result(p["ig"])})
+            return {"max_plays": MAX_PLAYS, "players": out}
+
+    def allow_again(self, ig):
+        """Forget a player entirely (all results, name freed) so they can sign in again."""
+        with self.lock:
+            n = self.db.execute("DELETE FROM scores WHERE ig = ?", (ig,)).rowcount
+            p = self.db.execute("DELETE FROM players WHERE ig = ?", (ig,)).rowcount
+            self.db.commit()
+        return {"players": p, "results": n}
+
     def delete_player(self, game, ig):
         with self.lock:
             n = self.db.execute("DELETE FROM scores WHERE game = ? AND ig = ?", (game, ig)).rowcount
@@ -190,5 +298,6 @@ class Scores:
     def reset(self):
         with self.lock:
             n = self.db.execute("DELETE FROM scores").rowcount
+            self.db.execute("DELETE FROM players")
             self.db.commit()
         return n

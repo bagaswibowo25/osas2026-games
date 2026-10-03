@@ -41,13 +41,8 @@
       <div class="intro">
         <p class="lead">A word appears. Is it a real Linux command, or did we make it up?</p>
         <p class="sub">Answer as many as you can in <span id="secs">30</span> seconds.</p>
-        <div class="fields">
-          <label class="name">Your name<input id="name" maxlength="20" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="next"></label>
-          <label class="name">Instagram username
-            <span class="ig-wrap"><input id="ig" maxlength="31" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" enterkeyhint="go"></span>
-            <small>Only the booth crew sees this, to reach winners. Not shown on the leaderboard.</small>
-          </label>
-        </div>
+        <p class="player" id="player"></p>
+        <p class="drop-warn" id="drop-warn" hidden></p>
         <p class="name-err" id="name-err" role="alert"></p>
         <button class="btn-primary" id="start">Start</button>
         <div class="links">
@@ -82,14 +77,18 @@
       <div class="prize" id="prize"></div>
       <p class="rank" id="rank" aria-live="polite"></p>
       <p class="hint">Show this screen to the booth crew.</p>
-      <button class="btn-ghost" id="again">Next player</button>
+      <p class="chance-note" id="chance-note"></p>
+      <div class="done-actions" id="done-actions" hidden>
+        <button class="btn-primary" id="claim">Take this prize</button>
+        <button class="btn-ghost" id="retry">Use my 2nd chance</button>
+      </div>
     </div>
   </section>
 </main>
 <script src="shared/game.js"></script>
 <script>
 (function () {
-  const { $, shuffle, show, countdown, finish, loadConfig, renderPrizes, begin, submit, clearName } = Booth;
+  const { $, shuffle, show, countdown, finish, loadConfig, renderPrizes, requirePlayer, begin, submit, doneButtons } = Booth;
   // Overridden by config/command.json. Highest minCorrect reached wins.
   const DEFAULTS = {
     seconds: 30,
@@ -203,7 +202,7 @@
   }
 
   async function ready() {
-    clearName();
+    if (!await requirePlayer()) return;
     cfg = await loadConfig('command', DEFAULTS);
     cfg.tiers = cfg.tiers.slice().sort((a, b) => b.minCorrect - a.minCorrect);
     $('#secs').textContent = cfg.seconds;
@@ -221,7 +220,7 @@
   $('#start').addEventListener('click', start);
   $('#real').addEventListener('click', () => answer(true));
   $('#fake').addEventListener('click', () => answer(false));
-  $('#again').addEventListener('click', ready);
+  doneButtons(() => session);
   ready();
 })();
 </script>

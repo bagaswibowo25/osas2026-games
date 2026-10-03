@@ -6,11 +6,15 @@ Admin (HTTP Basic auth, user "admin", password ADMIN_PASSWORD):
   PUT  /api/config/<game>     validate + save config/<game>.json (atomic replace)
   GET  /api/scores            every player's best result per game
   POST /api/scores/delete     {"game", "ig"}: remove one player from a board
-  POST /api/scores/reset      clear all leaderboards
+  POST /api/scores/reset      clear all leaderboards and players
+  GET  /api/players           every signed-in player, chances used, current result
+  POST /api/players/allow     {"ig"}: forget a player so they can sign in again
 
 Public, reached by the game containers' nginx (/games/<game>/api/* -> /play/*):
-  POST /play/start            {"game"} -> {"token"}
-  POST /play/finish           {"game", "token", "name", "ig", ...result} -> {"rank", "players"}
+  POST /play/register         {"name", "ig"} -> {"name", "plays", "left", "result"}
+  POST /play/start            {"game", "ig"} -> {"token", "attempt", "left"}
+  POST /play/finish           {"game", "token", ...result} -> {"rank", "players", "prize", "left"}
+  POST /play/close            {"ig"}: player takes their prize, session over
   GET  /play/leaderboard      top 10 per game
 """
 
@@ -98,11 +102,33 @@ def save(game, cfg):
         raise
 
 
-def game_seconds(game):
+def load_config(game):
     try:
-        return validate(game, json.loads((CONFIG_DIR / f"{game}.json").read_text()))["seconds"]
+        return validate(game, json.loads((CONFIG_DIR / f"{game}.json").read_text()))
     except (OSError, ValueError):
-        return {"memory": 60, "distro": 45, "command": 30}[game]
+        return None
+
+
+def game_seconds(game):
+    cfg = load_config(game)
+    return cfg["seconds"] if cfg else {"memory": 60, "distro": 45, "command": 30}[game]
+
+
+def prize_for(game, r):
+    """The prize a result earns under the current config; same rules as the game pages."""
+    cfg = load_config(game)
+    if not cfg:
+        return None
+    if game == "command":
+        tiers = sorted(cfg["tiers"], key=lambda t: -t["minCorrect"])
+        tier = next((t for t in tiers if r["correct"] >= t["minCorrect"]), None)
+    elif r["won"]:
+        key = GAMES[game]["key"]
+        value = r["used"] if game == "memory" else r["mistakes"]
+        tier = next((t for t in cfg["tiers"] if t.get(key) is None or value <= t[key]), None)
+    else:
+        tier = None
+    return tier["prize"] if tier else cfg["fallback"]
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -170,6 +196,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if self.path == "/api/scores":
             return self._json(200, SCORES.leaderboard(GAMES, limit=500, admin=True))
+        if self.path == "/api/players":
+            return self._json(200, SCORES.players())
         if self.path.startswith("/api/"):
             game = self._game()
             if game:
@@ -185,36 +213,51 @@ class Handler(BaseHTTPRequestHandler):
         self._send(200, f.read_bytes(), STATIC_TYPES.get(f.suffix, "application/octet-stream"))
 
     def do_POST(self):
-        if self.path in ("/play/start", "/play/finish"):
-            body = self._body()
-            if body is None:
-                return
-            game = body.get("game")
-            if game not in GAMES:
-                return self._json(404, {"error": "unknown game"})
-            try:
-                if self.path == "/play/start":
-                    return self._json(200, {"token": SCORES.start(game, game_seconds(game))})
-                return self._json(200, SCORES.finish(game, body))
-            except Rejected as e:
-                self.log_message("rejected %s result: %s", game, e)
-                return self._json(422, {"error": str(e)})
+        if self.path.startswith("/play/"):
+            return self._play()
         if not self._authed():
             return
-        if self.path not in ("/api/scores/delete", "/api/scores/reset"):
+        if self.path not in ("/api/scores/delete", "/api/scores/reset", "/api/players/allow"):
             return self._json(404, {"error": "not found"})
         body = self._body()
         if body is None:
             return
         if self.path == "/api/scores/reset":
             n = SCORES.reset()
-            self.log_message("leaderboards reset (%d results)", n)
+            self.log_message("leaderboards and players reset (%d results)", n)
             return self._json(200, {"deleted": n})
+        if self.path == "/api/players/allow":
+            if not isinstance(body.get("ig"), str):
+                return self._json(400, {"error": "need ig"})
+            out = SCORES.allow_again(body["ig"])
+            self.log_message("allowed @%s to play again (%d results removed)", body["ig"], out["results"])
+            return self._json(200, out)
         if body.get("game") not in GAMES or not isinstance(body.get("ig"), str):
             return self._json(400, {"error": "need game and ig"})
         n = SCORES.delete_player(body["game"], body["ig"])
         self.log_message("deleted @%s from %s (%d results)", body["ig"], body["game"], n)
         self._json(200, {"deleted": n})
+
+    def _play(self):
+        if self.path not in ("/play/register", "/play/start", "/play/finish", "/play/close"):
+            return self._json(404, {"error": "not found"})
+        body = self._body()
+        if body is None:
+            return
+        game = body.get("game")
+        if self.path in ("/play/start", "/play/finish") and game not in GAMES:
+            return self._json(404, {"error": "unknown game"})
+        try:
+            if self.path == "/play/register":
+                return self._json(200, SCORES.register(body.get("name"), body.get("ig")))
+            if self.path == "/play/close":
+                return self._json(200, SCORES.close(body.get("ig")))
+            if self.path == "/play/start":
+                return self._json(200, SCORES.start(game, game_seconds(game), body.get("ig")))
+            return self._json(200, SCORES.finish(game, body, prize_for))
+        except Rejected as e:
+            self.log_message("rejected %s: %s", self.path, e)
+            return self._json(422, {"error": str(e)})
 
     def do_PUT(self):
         if not self._authed():

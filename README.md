@@ -10,7 +10,8 @@ Tiap game 30–60 detik, didesain untuk tablet tapi tetap jalan di HP.
 | Command or Not?: perintah Linux asli atau karangan? (48 kata acak) | `/games/command/` | 30 s | ≥12 benar: Pin + sticker · 7–11: Sticker pack · <7: Candy |
 
 Peserta mulai dari halaman pilih game di **`/games/`** (kartu tiap game menampilkan durasi dan hadiah tertinggi
-dari config saat ini). Pemain wajib mengisi nama sebelum Start; hasilnya masuk **leaderboard harian** di **`/games/leaderboard/`**
+dari config saat ini). Pemain daftar sekali di sana (nama + IG), lalu punya **2 kesempatan** untuk semua game
+(lihat *Giliran pemain*). Hasilnya masuk **leaderboard harian** di **`/games/leaderboard/`**
 (top 10 per game, refresh otomatis, cocok untuk TV booth). Hadiah di atas adalah default; kru booth bisa mengubahnya dari web di **`/games/admin/`** (lihat di bawah).
 
 Live: https://quiz.opensuse.id/games/ (pilih game) · https://quiz.opensuse.id/games/memory/ · https://quiz.opensuse.id/games/distro/ · https://quiz.opensuse.id/games/command/
@@ -69,21 +70,40 @@ Contoh: tambah hadiah kaos untuk ≥15 benar di Command or Not:
 }
 ```
 
+## Giliran pemain
+
+- Pemain daftar **sekali** di `/games/` dengan nama dan username Instagram, lalu memilih game.
+- Tiap pemain punya **2 kesempatan** untuk semua game (bukan per game).
+- Setelah main pertama ada dua pilihan: **Take this prize** (selesai, ambil hadiah) atau **Use my 2nd chance**
+  (kembali ke daftar game, boleh pilih game lain).
+- Saat kesempatan kedua **dimulai** (tombol Start), hasil pertama **gugur**: hilang dari leaderboard, dan hadiahnya
+  ikut hasil kedua. Peringatan oranye muncul sebelum Start.
+- Giliran selesai saat pemain mengambil hadiah atau memulai kesempatan kedua. Setelah itu **username IG dan nama
+  yang sama tidak bisa daftar lagi** (nama dibandingkan tanpa beda huruf besar/kecil).
+- Kalau tablet di-reload sebelum selesai, pemain tetap login di tab itu; kalau tab ditutup, cukup daftar lagi dengan
+  IG yang sama untuk melanjutkan sisa kesempatan.
+- Bagian *Players* di `/games/admin/` menampilkan semua pemain: status, kesempatan terpakai, hasil yang berlaku, dan
+  **hadiah final**. Ada pencarian nama/IG. Tombol **Allow again** menghapus pemain dan hasilnya (misalnya salah
+  ketik IG atau tablet crash) sehingga ia bisa daftar ulang dengan 2 kesempatan baru.
+- Kesempatan yang sudah di-Start tetap terhitung walaupun game ditinggal di tengah jalan.
+
 ## Leaderboard
 
 - Leaderboard **per game**: tiga papan terpisah (Memory, Distro, Command), masing-masing top 10.
-- Nama (maks. 20 karakter) dan **username Instagram** wajib diisi. Username IG adalah identitas pemain: satu baris
-  per akun IG per game, hasil terbaiknya yang dipakai. IG **tidak** tampil di leaderboard publik maupun API publik,
+- Nama (maks. 20 karakter) dan **username Instagram** wajib diisi saat daftar. Username IG adalah identitas
+  pemain; karena hasil pertama gugur saat kesempatan kedua dimulai, tiap pemain punya paling banyak satu baris
+  di satu papan. IG **tidak** tampil di leaderboard publik maupun API publik,
   hanya di halaman admin (untuk menghubungi pemenang).
 - Peringkat: **Memory** selesai tercepat, lalu langkah paling sedikit; **Distro** salah paling sedikit, lalu
   tercepat; **Command** benar terbanyak, lalu salah paling sedikit. Yang belum selesai diurutkan di bawahnya.
 - Skor dihitung di browser, jadi server memberi token sekali pakai saat Start dan menolak hasil yang tidak
   sesuai waktu sebenarnya (Memory selesai 2 detik, 50 jawaban dalam 30 detik, kirim sebelum waktu habis, ...).
   Ini cukup untuk booth, tapi bukan anti-curang penuh.
-- **Hanya admin** yang bisa menghapus pemain (misalnya nama tidak pantas) atau **reset** semua leaderboard,
-  dari bagian *Leaderboard* di `/games/admin/`.
+- **Hanya admin** yang bisa menghapus pemain (misalnya nama tidak pantas) atau **reset** semua leaderboard
+  (sekaligus semua pendaftaran pemain, misalnya untuk hari berikutnya), dari bagian *Leaderboard* di `/games/admin/`.
 - Game memanggil `api/*` relatif ke path-nya; nginx di tiap container meneruskannya ke `games-admin:8080/play/*`,
-  jadi tidak perlu route Caddy tambahan. Kalau admin mati, game tetap bisa dimainkan (skor tidak tersimpan).
+  jadi tidak perlu route Caddy tambahan. Pendaftaran dan jatah kesempatan dicek di server, jadi game **butuh**
+  container admin hidup (kalau mati, tombol Start menampilkan pesan error).
 
 ## Coba lokal
 
