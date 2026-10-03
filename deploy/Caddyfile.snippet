@@ -2,6 +2,7 @@
 	redir /games/memory /games/memory/ 308
 	redir /games/distro /games/distro/ 308
 	redir /games/command /games/command/ 308
+	redir /games/admin /games/admin/ 308
 	handle_path /games/memory/* {
 		reverse_proxy games-memory:80
 	}
@@ -10,5 +11,8 @@
 	}
 	handle_path /games/command/* {
 		reverse_proxy games-command:80
+	}
+	handle_path /games/admin/* {
+		reverse_proxy games-admin:8080
 	}
 	# --- end osas2026-games ---

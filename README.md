@@ -9,6 +9,8 @@ Tiap game 30–60 detik, didesain untuk tablet tapi tetap jalan di HP.
 | Distro Match: pasangkan distro dengan package manager-nya | `/games/distro/` | 45 s | tanpa salah: Pin + sticker · selesai: Sticker pack · waktu habis: Candy |
 | Command or Not?: perintah Linux asli atau karangan? | `/games/command/` | 30 s | ≥12 benar: Pin + sticker · 7–11: Sticker pack · <7: Candy |
 
+Hadiah di atas adalah default; kru booth bisa mengubahnya dari web di **`/games/admin/`** (lihat di bawah).
+
 Live: https://quiz.opensuse.id/games/memory/ · https://quiz.opensuse.id/games/distro/ · https://quiz.opensuse.id/games/command/
 
 Mockup: https://claude.ai/artifact/PaZHA1CBtDvB2ukvPcFtG4
@@ -20,6 +22,8 @@ games/<game>/index.html   satu game = satu halaman statis (HTML + CSS + JS vanil
 shared/                   style, helper JS (timer, shuffle, layar), font self-host
 Dockerfile                nginx:alpine, --build-arg GAME=<memory|distro|command>
 docker-compose.yml        3 container: games-memory, games-distro, games-command
+admin/                    halaman admin hadiah + API kecil (Python stdlib), container games-admin
+config/<game>.json        hadiah/syarat/durasi per game (ditulis oleh admin)
 deploy/nginx.conf         config nginx di dalam container
 deploy/Caddyfile.snippet  route yang ditambahkan ke Caddyfile.prod ClassQuiz
 ```
@@ -28,9 +32,12 @@ Tidak ada backend, database, atau build step. Soal ada di `games/<game>/index.ht
 
 ## Konfigurasi hadiah
 
-Hadiah, syarat, dan durasi tiap game ada di `config/<game>.json`. Di server, folder ini di-mount ke container,
-jadi cukup edit `~/osas2026-games/config/<game>.json`. Perubahan berlaku saat kru menekan **Next player**
-(atau reload halaman), **tanpa rebuild atau restart**. Kalau JSON-nya rusak, game memakai default bawaan
+Buka **https://quiz.opensuse.id/games/admin/**, login dengan user `admin` dan password `ADMIN_PASSWORD`
+dari `~/osas2026-games/.env` di server. Di sana nama hadiah, syarat, jumlah tingkat, dan durasi tiap game bisa
+diubah; tombol **Save** memvalidasi lalu menyimpan ke `config/<game>.json`. Perubahan berlaku saat kru menekan
+**Next player** (atau reload halaman game), **tanpa rebuild atau restart**.
+
+File `config/<game>.json` juga boleh diedit langsung lewat SSH. Kalau JSON-nya rusak, game memakai default bawaan
 (cek console browser).
 
 Format: `tiers` dicek berurutan, tier pertama yang syaratnya terpenuhi yang menang; kalau tidak ada yang cocok
@@ -73,10 +80,13 @@ memegang port 80/443, jadi container game **tidak** membuka port sendiri. Mereka
 # 1. kirim kode ke server (repo private, jadi pakai rsync).
 #    config/ dikecualikan agar hadiah yang sudah diedit kru di server tidak tertimpa;
 #    baris kedua hanya menyalin file config yang belum ada di server.
-rsync -az --delete --exclude .git --exclude config/ ./ aryulianto@quiz.opensuse.id:osas2026-games/
+rsync -az --delete --exclude .git --exclude config/ --exclude .env ./ aryulianto@quiz.opensuse.id:osas2026-games/
 rsync -az --ignore-existing config/ aryulianto@quiz.opensuse.id:osas2026-games/config/
 
-# 2. build & jalankan
+# 2. hanya pertama kali: buat password admin
+ssh aryulianto@quiz.opensuse.id 'cd osas2026-games && [ -f .env ] || (umask 077; echo "ADMIN_PASSWORD=$(openssl rand -base64 18)" > .env)'
+
+# 3. build & jalankan
 ssh aryulianto@quiz.opensuse.id 'cd osas2026-games && sudo docker compose up -d --build'
 ```
 
@@ -96,6 +106,7 @@ Operasional:
 cd ~/osas2026-games
 sudo docker compose ps
 sudo docker compose logs -f memory
+grep ADMIN_PASSWORD .env                    # lihat password admin; ubah di sini lalu: sudo docker compose up -d admin
 sudo docker compose up -d --build command   # deploy ulang satu game saja
 nano config/command.json                    # ubah hadiah, lalu tekan "Next player" di tablet
 ```

@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Booth Prizes</title>
+<link rel="stylesheet" href="shared/base.css">
+<style>
+body { user-select: auto; }
+.app { max-width: 920px; gap: 24px; }
+.game { background: var(--panel); border-radius: 20px; padding: clamp(16px, 3vw, 28px); display: flex; flex-direction: column; gap: 16px; }
+.game h2 { margin: 0; font-size: 26px; font-weight: 800; }
+.game h2 a { font-size: 16px; font-weight: 600; margin-left: 8px; }
+.help { margin: 0; color: var(--muted); font-size: 16px; line-height: 1.4; }
+label { display: flex; flex-direction: column; gap: 6px; font-size: 15px; font-weight: 600; color: var(--muted); }
+input {
+  font: inherit; font-size: 18px; color: #FFFFFF;
+  background: var(--bg); border: 2px solid var(--line); border-radius: 10px;
+  padding: 10px 12px; min-height: 48px; width: 100%;
+}
+input:focus { outline: none; border-color: var(--teal); }
+.tiers { display: flex; flex-direction: column; gap: 10px; }
+.grid { display: grid; grid-template-columns: 1fr 160px 48px; gap: 10px; align-items: end; }
+.grid.head { color: var(--muted); font-size: 14px; font-weight: 600; align-items: end; }
+.short { max-width: 200px; }
+.icon {
+  min-height: 48px; border-radius: 10px; border: 2px solid var(--line);
+  background: transparent; color: #FFFFFF; font-size: 22px; line-height: 1;
+}
+.icon:hover { border-color: var(--warn); color: var(--warn); }
+.actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.btn { min-height: 48px; padding: 0 22px; border-radius: 12px; font-size: 18px; font-weight: 700; }
+.btn.add { background: transparent; border: 2px solid var(--line); color: #FFFFFF; }
+.btn.save { background: var(--green); border: 0; color: var(--ink); }
+.btn.save:hover { background: var(--green-hi); }
+.btn:disabled { opacity: .5; cursor: wait; }
+.status { font-size: 16px; font-weight: 600; }
+.status.ok { color: var(--green); }
+.status.err { color: var(--warn); }
+a { color: var(--green); }
+@media (max-width: 600px) { .grid { grid-template-columns: 1fr 100px 48px; } }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div>
+      <div class="eyebrow">openSUSE Asia Summit 2026 · booth crew</div>
+      <h1>Booth prizes</h1>
+    </div>
+  </header>
+  <p class="help">Prizes are checked top to bottom: the first row a player qualifies for is what they win.
+    Players who qualify for none get the fallback prize. Changes reach a tablet the next time someone taps
+    <strong>Next player</strong> or reloads the game.</p>
+  <div id="games"></div>
+</main>
+
+<template id="game-tpl">
+  <section class="game">
+    <h2><span class="title"></span><a class="open" target="_blank" rel="noopener">open game</a></h2>
+    <p class="help rule"></p>
+    <label class="short">Duration (seconds)<input type="number" class="seconds" min="10" max="600" step="1" required></label>
+    <div class="grid head"><span>Prize</span><span class="cond-head"></span><span></span></div>
+    <div class="tiers"></div>
+    <div class="actions"><button type="button" class="btn add">+ Add prize</button></div>
+    <label>Fallback prize (everyone else)<input type="text" class="fallback" maxlength="60" required></label>
+    <div class="actions">
+      <button type="button" class="btn save">Save</button>
+      <span class="status" role="status"></span>
+    </div>
+  </section>
+</template>
+
+<script>
+(function () {
+  // How each game's tier condition is labelled; must match GAMES in server.py.
+  const GAMES = [
+    { id: 'memory', title: 'Geeko Memory Match', key: 'maxSeconds', head: 'Done within (s)',
+      optional: true, placeholder: 'any time',
+      rule: 'Only players who find every pair win a tier. "Done within" = finished in at most this many seconds; leave it empty for "before time runs out".' },
+    { id: 'distro', title: 'Distro Match', key: 'maxMistakes', head: 'Max mistakes',
+      optional: true, placeholder: 'any',
+      rule: 'Only players who match all 6 win a tier. "Max mistakes" = at most this many wrong taps; leave it empty for "before time runs out".' },
+    { id: 'command', title: 'Command or Not?', key: 'minCorrect', head: 'Min correct',
+      optional: false, placeholder: '',
+      rule: 'A player wins the tier with the highest "Min correct" they reached.' }
+  ];
+
+  // Built from origin + path so it still works when the page was opened as https://user:pass@host/...
+  // (fetch refuses URLs that carry credentials).
+  function api(id) { return new URL('api/config/' + id, location.origin + location.pathname).href; }
+
+  function tierRow(game, tier, list) {
+    const row = document.createElement('div');
+    row.className = 'grid';
+    const prize = document.createElement('input');
+    prize.type = 'text'; prize.className = 'prize'; prize.maxLength = 60; prize.value = tier.prize || '';
+    prize.setAttribute('aria-label', 'Prize');
+    const cond = document.createElement('input');
+    cond.type = 'number'; cond.className = 'cond'; cond.min = 0; cond.step = 1;
+    cond.placeholder = game.placeholder;
+    cond.value = tier[game.key] == null ? '' : tier[game.key];
+    cond.setAttribute('aria-label', game.head);
+    const del = document.createElement('button');
+    del.type = 'button'; del.className = 'icon'; del.textContent = '×';
+    del.setAttribute('aria-label', 'Remove prize');
+    del.addEventListener('click', () => row.remove());
+    row.append(prize, cond, del);
+    list.appendChild(row);
+  }
+
+  function collect(game, el) {
+    const tiers = [...el.querySelectorAll('.tiers .grid')].map((row) => {
+      const t = { prize: row.querySelector('.prize').value.trim() };
+      const v = row.querySelector('.cond').value.trim();
+      if (v !== '') t[game.key] = Number(v);
+      return t;
+    });
+    return {
+      seconds: Number(el.querySelector('.seconds').value),
+      tiers: tiers,
+      fallback: el.querySelector('.fallback').value.trim()
+    };
+  }
+
+  function setStatus(el, text, ok) {
+    const s = el.querySelector('.status');
+    s.textContent = text;
+    s.className = 'status ' + (ok ? 'ok' : 'err');
+  }
+
+  async function mount(game) {
+    const el = document.getElementById('game-tpl').content.firstElementChild.cloneNode(true);
+    el.querySelector('.title').textContent = game.title;
+    el.querySelector('.open').href = '../' + game.id + '/';
+    el.querySelector('.rule').textContent = game.rule;
+    el.querySelector('.cond-head').textContent = game.head;
+    document.getElementById('games').appendChild(el);
+    const list = el.querySelector('.tiers');
+
+    function fill(cfg) {
+      el.querySelector('.seconds').value = cfg.seconds;
+      el.querySelector('.fallback').value = cfg.fallback;
+      list.textContent = '';
+      cfg.tiers.forEach((t) => tierRow(game, t, list));
+    }
+
+    el.querySelector('.add').addEventListener('click', () => {
+      tierRow(game, { prize: '' }, list);
+      list.lastElementChild.querySelector('.prize').focus();
+    });
+
+    el.querySelector('.save').addEventListener('click', async (ev) => {
+      const btn = ev.currentTarget;
+      btn.disabled = true;
+      try {
+        const r = await fetch(api(game.id), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(collect(game, el))
+        });
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.error || 'HTTP ' + r.status);
+        fill(body);
+        setStatus(el, 'Saved ' + new Date().toLocaleTimeString(), true);
+      } catch (e) {
+        setStatus(el, 'Not saved: ' + e.message, false);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    try {
+      const r = await fetch(api(game.id), { cache: 'no-store' });
+      const body = await r.json();
+      if (!r.ok) throw new Error(body.error || 'HTTP ' + r.status);
+      fill(body);
+    } catch (e) {
+      setStatus(el, 'Could not load: ' + e.message, false);
+    }
+  }
+
+  GAMES.forEach(mount);
+})();
+</script>
+</body>
+</html>

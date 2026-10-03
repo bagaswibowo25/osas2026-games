@@ -5,12 +5,13 @@ name: osas2026-games
 #   /games/memory  -> games-memory:80
 #   /games/distro  -> games-distro:80
 #   /games/command -> games-command:80
+#   /games/admin   -> games-admin:8080  (prize settings, password in .env)
 # See deploy/Caddyfile.snippet.
 
 x-game: &game
   restart: always
   networks: [classquiz]
-  # Prize config: edit config/<game>.json on the host; picked up on the next
+  # Prize config, written by the admin page (or by hand); picked up on the next
   # "Next player" / page load, no rebuild or restart needed.
   volumes:
     - ./config:/usr/share/nginx/html/config:ro
@@ -38,6 +39,24 @@ services:
     build: { context: ., args: { GAME: command } }
     image: osas2026-games/command
     container_name: games-command
+
+  admin:
+    build: { context: ., dockerfile: admin/Dockerfile }
+    image: osas2026-games/admin
+    container_name: games-admin
+    restart: always
+    networks: [classquiz]
+    # Same uid as the host user so saved config files stay editable over SSH
+    user: "1000:1000"
+    environment:
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+    volumes:
+      - ./config:/config
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
 
 networks:
   classquiz:
