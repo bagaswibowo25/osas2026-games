@@ -1,4 +1,5 @@
 	# --- osas2026-games (github.com/bagaswibowo25/osas2026-games) ---
+	redir /games /games/ 308
 	redir /games/memory /games/memory/ 308
 	redir /games/distro /games/distro/ 308
 	redir /games/command /games/command/ 308
@@ -14,5 +15,9 @@
 	}
 	handle_path /games/admin/* {
 		reverse_proxy games-admin:8080
+	}
+	# Game picker; Caddy sorts handle_path by path length, so the routes above win
+	handle_path /games/* {
+		reverse_proxy games-hub:80
 	}
 	# --- end osas2026-games ---

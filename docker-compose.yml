@@ -2,6 +2,7 @@ name: osas2026-games
 
 # Each game is its own container. They join the ClassQuiz stack's network so
 # its Caddy (which owns ports 80/443 on quiz.opensuse.id) can proxy to them:
+#   /games/        -> games-hub:80      (game picker)
 #   /games/memory  -> games-memory:80
 #   /games/distro  -> games-distro:80
 #   /games/command -> games-command:80
@@ -22,6 +23,12 @@ x-game: &game
     retries: 3
 
 services:
+  hub:
+    <<: *game
+    build: { context: ., args: { GAME: hub } }
+    image: osas2026-games/hub
+    container_name: games-hub
+
   memory:
     <<: *game
     build: { context: ., args: { GAME: memory } }

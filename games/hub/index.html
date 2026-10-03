@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Booth Games</title>
+<link rel="stylesheet" href="shared/base.css">
+<style>
+.lead { margin: 0; font-size: clamp(24px, 3.2vw, 36px); font-weight: 600; line-height: 1.2; }
+.picks {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(16px, 2.4vw, 28px);
+  align-content: center;
+}
+.pick {
+  display: flex; flex-direction: column; gap: 14px;
+  min-height: 340px;
+  padding: clamp(20px, 2.6vw, 32px);
+  border-radius: 20px; border: 2px solid var(--line);
+  background: var(--panel); color: #FFFFFF; text-decoration: none;
+  transition: border-color .15s, transform .15s;
+}
+.pick:hover, .pick:focus-visible { border-color: var(--green); }
+.pick:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+.pick:active { transform: scale(.98); }
+.pick .icon { width: 56px; height: 56px; color: var(--green); }
+.pick h2 { margin: 0; font-size: clamp(24px, 2.6vw, 30px); font-weight: 800; line-height: 1.1; }
+.pick p { margin: 0; font-size: clamp(17px, 1.8vw, 20px); color: var(--muted); line-height: 1.35; }
+.pick .meta { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding-top: 16px; border-top: 1px solid var(--line); }
+.pick .time { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--muted); }
+.pick .best { font-size: 18px; }
+.pick .best strong { color: var(--green); }
+.pick .go {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 60px; border-radius: 14px;
+  background: var(--green); color: var(--ink);
+  font-size: 24px; font-weight: 800;
+}
+@media (max-width: 860px) {
+  .picks { grid-template-columns: minmax(0, 1fr); align-content: start; }
+  .pick { min-height: 0; }
+}
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div>
+      <div class="eyebrow">openSUSE Asia Summit 2026</div>
+      <h1>Booth Games</h1>
+    </div>
+  </header>
+  <p class="lead">Pick a game. Every player wins something.</p>
+
+  <nav class="picks" aria-label="Games">
+    <a class="pick" href="memory/" data-game="memory">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="8" height="11" rx="1.5"/><rect x="13" y="9" width="8" height="11" rx="1.5"/><path d="M7 8.5v2M17 13.5v2"/></svg>
+      <h2>Geeko Memory Match</h2>
+      <p>Flip the cards and match each openSUSE tool with what it does.</p>
+      <div class="meta">
+        <span class="time"><span class="secs">60</span> seconds</span>
+        <span class="best">Top prize: <strong class="prize">Pin + sticker</strong></span>
+      </div>
+      <span class="go">Play</span>
+    </a>
+    <a class="pick" href="distro/" data-game="distro">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 6h10M7 18l10-12M7 6l10 12"/></svg>
+      <h2>Distro Match</h2>
+      <p>Pair each Linux distro with its package manager.</p>
+      <div class="meta">
+        <span class="time"><span class="secs">45</span> seconds</span>
+        <span class="best">Top prize: <strong class="prize">Pin + sticker</strong></span>
+      </div>
+      <span class="go">Play</span>
+    </a>
+    <a class="pick" href="command/" data-game="command">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4" width="19" height="16" rx="2"/><path d="M7 10l3 2-3 2M12.5 15h4.5"/></svg>
+      <h2>Command or Not?</h2>
+      <p>Real Linux command or made up? Answer as many as you can.</p>
+      <div class="meta">
+        <span class="time"><span class="secs">30</span> seconds</span>
+        <span class="best">Top prize: <strong class="prize">Pin + sticker</strong></span>
+      </div>
+      <span class="go">Play</span>
+    </a>
+  </nav>
+</main>
+<script>
+// Fill duration and top prize from each game's live config (set in /games/admin/).
+// The markup above holds the defaults, so the page still reads fine if a fetch fails.
+document.querySelectorAll('.pick').forEach(async (card) => {
+  const g = card.dataset.game;
+  try {
+    const r = await fetch(g + '/config/' + g + '.json', { cache: 'no-store' });
+    if (!r.ok) return;
+    const cfg = await r.json();
+    let top = cfg.tiers && cfg.tiers[0];
+    if (g === 'command' && cfg.tiers && cfg.tiers.length) {
+      top = cfg.tiers.slice().sort((a, b) => b.minCorrect - a.minCorrect)[0];
+    }
+    if (cfg.seconds) card.querySelector('.secs').textContent = cfg.seconds;
+    card.querySelector('.prize').textContent = top ? top.prize : cfg.fallback;
+  } catch (e) { /* keep defaults */ }
+});
+// Refresh when the tablet comes back to this page so prize edits show up.
+window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload(); });
+</script>
+</body>
+</html>

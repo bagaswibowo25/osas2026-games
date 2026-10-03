@@ -9,9 +9,10 @@ Tiap game 30–60 detik, didesain untuk tablet tapi tetap jalan di HP.
 | Distro Match: pasangkan distro dengan package manager-nya | `/games/distro/` | 45 s | tanpa salah: Pin + sticker · selesai: Sticker pack · waktu habis: Candy |
 | Command or Not?: perintah Linux asli atau karangan? | `/games/command/` | 30 s | ≥12 benar: Pin + sticker · 7–11: Sticker pack · <7: Candy |
 
-Hadiah di atas adalah default; kru booth bisa mengubahnya dari web di **`/games/admin/`** (lihat di bawah).
+Peserta mulai dari halaman pilih game di **`/games/`** (kartu tiap game menampilkan durasi dan hadiah tertinggi
+dari config saat ini). Hadiah di atas adalah default; kru booth bisa mengubahnya dari web di **`/games/admin/`** (lihat di bawah).
 
-Live: https://quiz.opensuse.id/games/memory/ · https://quiz.opensuse.id/games/distro/ · https://quiz.opensuse.id/games/command/
+Live: https://quiz.opensuse.id/games/ (pilih game) · https://quiz.opensuse.id/games/memory/ · https://quiz.opensuse.id/games/distro/ · https://quiz.opensuse.id/games/command/
 
 Mockup: https://claude.ai/artifact/PaZHA1CBtDvB2ukvPcFtG4
 
@@ -19,9 +20,10 @@ Mockup: https://claude.ai/artifact/PaZHA1CBtDvB2ukvPcFtG4
 
 ```
 games/<game>/index.html   satu game = satu halaman statis (HTML + CSS + JS vanilla)
+games/hub/index.html      halaman pilih game di /games/
 shared/                   style, helper JS (timer, shuffle, layar), font self-host
 Dockerfile                nginx:alpine, --build-arg GAME=<memory|distro|command>
-docker-compose.yml        3 container: games-memory, games-distro, games-command
+docker-compose.yml        container: games-hub, games-memory, games-distro, games-command, games-admin
 admin/                    halaman admin hadiah + API kecil (Python stdlib), container games-admin
 config/<game>.json        hadiah/syarat/durasi per game (ditulis oleh admin)
 deploy/nginx.conf         config nginx di dalam container

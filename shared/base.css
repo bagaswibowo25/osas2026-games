@@ -85,6 +85,12 @@ h1 { margin: 4px 0 0; font-size: clamp(28px, 4.2vw, 44px); font-weight: 800; lin
   font-weight: 800;
 }
 .btn-primary:hover { background: var(--green-hi); }
+.back {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; min-height: 48px;
+  font-size: 20px; font-weight: 600; color: var(--muted); text-decoration: none;
+}
+.back:hover { color: #FFFFFF; }
 
 .prizes { display: flex; flex-direction: column; padding: clamp(20px, 3vw, 32px); border-radius: 20px; background: var(--panel); }
 .prizes h2 { margin: 0 0 12px; font-size: 24px; font-weight: 800; }
@@ -116,4 +122,5 @@ h1 { margin: 4px 0 0; font-size: clamp(28px, 4.2vw, 44px); font-weight: 800; lin
 @media (max-width: 760px) {
   .ready { grid-template-columns: 1fr; align-items: start; }
   .btn-primary { align-self: stretch; }
+  .back { align-self: center; }
 }
