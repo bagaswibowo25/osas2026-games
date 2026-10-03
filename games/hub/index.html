@@ -57,6 +57,38 @@
   background: var(--green); color: var(--ink); font-family: var(--mono); font-weight: 700;
 }
 #signin .ready { align-items: start; }
+.side { display: flex; flex-direction: column; gap: 20px; }
+.peek h2 { margin: 0 0 10px; font-size: 20px; font-weight: 600; color: var(--muted); }
+.peek-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.peek-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  min-height: 120px; padding: 16px; text-align: left;
+  border-radius: 16px; border: 2px solid var(--line); background: var(--panel); color: #FFFFFF;
+  transition: border-color .15s, transform .15s;
+}
+.peek-card:hover { border-color: var(--green); }
+.peek-card:active { transform: scale(.97); }
+.peek-card .icon { width: 36px; height: 36px; color: var(--green); }
+.peek-card strong { font-size: 18px; font-weight: 800; line-height: 1.15; }
+.peek-card span { margin-top: auto; font-size: 15px; color: var(--muted); }
+#about {
+  width: min(640px, calc(100% - 32px)); max-height: calc(100dvh - 32px);
+  padding: clamp(20px, 3vw, 32px); border: 2px solid var(--line); border-radius: 20px;
+  background: var(--panel); color: #FFFFFF;
+}
+#about::backdrop { background: rgba(8, 24, 31, .75); }
+#about .head { display: flex; align-items: center; gap: 16px; }
+#about .head .icon { width: 52px; height: 52px; flex: none; color: var(--green); }
+#about h2 { margin: 0; font-size: clamp(26px, 3vw, 32px); font-weight: 800; line-height: 1.1; }
+#about .time { margin: 4px 0 0; font-family: var(--mono); font-size: 17px; font-weight: 700; color: var(--muted); }
+#about .desc { margin: 16px 0 0; font-size: 20px; line-height: 1.4; }
+#about h3 { margin: 20px 0 6px; font-size: 18px; font-weight: 700; color: var(--muted); }
+#about .how { margin: 0; padding-left: 24px; font-size: 18px; line-height: 1.4; }
+#about .how li + li { margin-top: 6px; }
+#about .row { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 18px; }
+#about .row strong { color: var(--green); text-align: right; }
+#about .note { margin: 18px 0 0; font-size: 17px; color: var(--muted); }
+#about .close { margin-top: 20px; width: 100%; }
 @media (max-width: 860px) {
   .picks { grid-template-columns: minmax(0, 1fr); align-content: start; }
   .pick { min-height: 0; }
@@ -86,6 +118,7 @@
         <button class="btn-primary" id="go">Continue</button>
         <div class="links"><a class="back" href="leaderboard/">Today’s leaderboard</a></div>
       </div>
+      <div class="side">
       <div class="prizes">
         <h2>How it works</h2>
         <ol class="steps">
@@ -95,8 +128,34 @@
           <li>One turn per person: two chances, then your name is done for the day.</li>
         </ol>
       </div>
+      <div class="peek">
+        <h2>The games: tap one for details</h2>
+        <div class="peek-row">
+          <button type="button" class="peek-card" data-game="memory"><strong>Geeko Memory Match</strong><span><span class="secs">60</span> s</span></button>
+          <button type="button" class="peek-card" data-game="distro"><strong>Distro Match</strong><span><span class="secs">45</span> s</span></button>
+          <button type="button" class="peek-card" data-game="command"><strong>Command or Not?</strong><span><span class="secs">30</span> s</span></button>
+        </div>
+      </div>
+      </div>
     </div>
   </section>
+
+  <dialog id="about" aria-labelledby="about-title">
+    <div class="head">
+      <span class="slot"></span>
+      <div>
+        <h2 id="about-title"></h2>
+        <p class="time"></p>
+      </div>
+    </div>
+    <p class="desc"></p>
+    <h3>How to play</h3>
+    <ol class="how"></ol>
+    <h3>Prizes</h3>
+    <div class="rows"></div>
+    <p class="note">Sign in first, then pick this game to play.</p>
+    <button type="button" class="btn-ghost close">Got it</button>
+  </dialog>
 
   <section class="screen" id="pick" hidden>
   <div class="hub-lead">
@@ -147,12 +206,15 @@
 <script>
 // Fill duration and top prize from each game's live config (set in /games/admin/).
 // The markup above holds the defaults, so the page still reads fine if a fetch fails.
+const CONFIGS = {};
 document.querySelectorAll('.pick').forEach(async (card) => {
   const g = card.dataset.game;
   try {
     const r = await fetch(g + '/config/' + g + '.json', { cache: 'no-store' });
     if (!r.ok) return;
     const cfg = await r.json();
+    CONFIGS[g] = cfg;
+    if (cfg.seconds) document.querySelector('.peek-card[data-game="' + g + '"] .secs').textContent = cfg.seconds;
     let top = cfg.tiers && cfg.tiers[0];
     if (g === 'command' && cfg.tiers && cfg.tiers.length) {
       top = cfg.tiers.slice().sort((a, b) => b.minCorrect - a.minCorrect)[0];
@@ -213,6 +275,89 @@ window.addEventListener('pageshow', (e) => { if (e.persisted) location.reload();
   $('#switch').addEventListener('click', () => { forget(); signin(); $('#name').focus(); });
 
   current().then((p) => (p && p.left > 0 ? picker(p) : signin()));
+})();
+
+// Game overview on the sign-in screen, so players can look before they sign in.
+(function () {
+  const $ = Booth.$;
+  const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+  const fallback = (cfg, label) => [[label, cfg.fallback]];
+  // Prize rows use the same wording as each game's ready screen.
+  const ABOUT = {
+    memory: {
+      desc: 'Flip the cards and match each openSUSE tool with what it does.',
+      how: ['12 cards lie face down: 6 openSUSE tools and 6 things they do.',
+        'Flip two at a time. A tool and its job stay open; anything else flips back.',
+        'Find all 6 pairs before time runs out. The faster, the better the prize.'],
+      prizes: (cfg) => cfg.tiers.map((t) => [
+        t.maxSeconds == null ? 'All pairs before time runs out' : 'All pairs in ' + t.maxSeconds + ' s or less', t.prize
+      ]).concat(fallback(cfg, 'Time ran out'))
+    },
+    distro: {
+      desc: 'Pair each Linux distro with its package manager.',
+      how: ['You get 8 distros and 8 package managers, a new random mix every round.',
+        'Tap a distro, then tap its package manager.',
+        'A wrong tap counts as a mistake. Match all 8 with few mistakes for the best prize.'],
+      prizes: (cfg) => cfg.tiers.map((t) => [
+        t.maxMistakes == null ? 'All 8 before time runs out'
+          : t.maxMistakes === 0 ? 'All 8 with no mistakes'
+          : 'All 8 with at most ' + plural(t.maxMistakes, 'mistake'), t.prize
+      ]).concat(fallback(cfg, 'Time ran out'))
+    },
+    command: {
+      desc: 'Real Linux command, or did we make it up?',
+      how: ['A word appears on screen.',
+        'Tap Real command or Made up. You see the answer right away.',
+        'Answer as many as you can before time runs out. More correct answers, better prize.'],
+      prizes: (cfg) => {
+        const tiers = cfg.tiers.slice().sort((a, b) => b.minCorrect - a.minCorrect);
+        const rows = tiers.map((t, i) => [i === 0 ? t.minCorrect + ' or more correct'
+          : t.minCorrect + ' to ' + (tiers[i - 1].minCorrect - 1) + ' correct', t.prize]);
+        const low = tiers.length ? tiers[tiers.length - 1].minCorrect : null;
+        return rows.concat(fallback(cfg, low == null ? 'Everyone' : 'Under ' + low));
+      }
+    }
+  };
+  const DEFAULTS = {
+    memory: { seconds: 60, tiers: [{ prize: 'Pin + sticker', maxSeconds: 40 }, { prize: 'Sticker pack' }], fallback: 'Candy' },
+    distro: { seconds: 45, tiers: [{ prize: 'Pin + sticker', maxMistakes: 0 }, { prize: 'Sticker pack' }], fallback: 'Candy' },
+    command: { seconds: 30, tiers: [{ prize: 'Pin + sticker', minCorrect: 12 }, { prize: 'Sticker pack', minCorrect: 7 }], fallback: 'Candy' }
+  };
+  const dlg = $('#about');
+
+  // Reuse the icons from the game picker.
+  document.querySelectorAll('.peek-card').forEach((card) => {
+    card.prepend(document.querySelector('.pick[data-game="' + card.dataset.game + '"] .icon').cloneNode(true));
+    card.addEventListener('click', () => open(card.dataset.game));
+  });
+
+  function open(g) {
+    const info = ABOUT[g];
+    const cfg = CONFIGS[g] || DEFAULTS[g];
+    const pick = document.querySelector('.pick[data-game="' + g + '"]');
+    dlg.querySelector('.slot').replaceChildren(pick.querySelector('.icon').cloneNode(true));
+    dlg.querySelector('h2').textContent = pick.querySelector('h2').textContent;
+    dlg.querySelector('.time').textContent = cfg.seconds + ' seconds';
+    dlg.querySelector('.desc').textContent = info.desc;
+    dlg.querySelector('.how').replaceChildren(...info.how.map((t) => {
+      const li = document.createElement('li'); li.textContent = t; return li;
+    }));
+    dlg.querySelector('.rows').replaceChildren(...info.prizes(cfg).map(([cond, prize]) => {
+      const row = document.createElement('div'); row.className = 'row';
+      const c = document.createElement('span'); c.textContent = cond;
+      const pz = document.createElement('strong'); pz.textContent = prize;
+      row.append(c, pz); return row;
+    }));
+    dlg.showModal();
+    dlg.querySelector('.close').focus();
+  }
+
+  dlg.querySelector('.close').addEventListener('click', () => dlg.close());
+  // Tap outside the box to close.
+  dlg.addEventListener('click', (e) => {
+    const r = dlg.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dlg.close();
+  });
 })();
 </script>
 </body>
