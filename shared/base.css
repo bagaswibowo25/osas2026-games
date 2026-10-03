@@ -94,6 +94,14 @@ h1 { margin: 4px 0 0; font-size: clamp(28px, 4.2vw, 44px); font-weight: 800; lin
   user-select: text;
 }
 .name input:focus { outline: none; border-color: var(--teal); }
+.fields { display: flex; flex-direction: column; gap: 14px; }
+.ig-wrap { position: relative; }
+.ig-wrap::before {
+  content: '@'; position: absolute; left: 18px; top: 50%; transform: translateY(-50%);
+  font-size: 26px; font-weight: 600; color: var(--dim); pointer-events: none;
+}
+.ig-wrap input { padding-left: 44px; font-family: var(--mono); font-size: 24px; }
+.name small { font-size: 15px; font-weight: 400; color: var(--dim); }
 .name-err { margin: -8px 0 0; min-height: 24px; font-size: 18px; font-weight: 600; color: var(--warn); }
 .links { display: flex; gap: 24px; flex-wrap: wrap; }
 .done .rank { margin: 0; min-height: 30px; font-size: clamp(20px, 2.4vw, 26px); font-weight: 600; color: #FFFFFF; }

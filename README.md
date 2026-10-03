@@ -71,8 +71,10 @@ Contoh: tambah hadiah kaos untuk ≥15 benar di Command or Not:
 
 ## Leaderboard
 
-- Nama wajib diisi (maks. 20 karakter). Per game hanya hasil terbaik tiap nama yang tampil
-  (`Budi` dan `budi` dianggap orang yang sama).
+- Leaderboard **per game**: tiga papan terpisah (Memory, Distro, Command), masing-masing top 10.
+- Nama (maks. 20 karakter) dan **username Instagram** wajib diisi. Username IG adalah identitas pemain: satu baris
+  per akun IG per game, hasil terbaiknya yang dipakai. IG **tidak** tampil di leaderboard publik maupun API publik,
+  hanya di halaman admin (untuk menghubungi pemenang).
 - Peringkat: **Memory** selesai tercepat, lalu langkah paling sedikit; **Distro** salah paling sedikit, lalu
   tercepat; **Command** benar terbanyak, lalu salah paling sedikit. Yang belum selesai diurutkan di bawahnya.
 - Skor dihitung di browser, jadi server memberi token sekali pakai saat Start dan menolak hasil yang tidak

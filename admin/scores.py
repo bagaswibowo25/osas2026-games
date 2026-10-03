@@ -5,6 +5,9 @@ What it can do: hand out a one-time token when a game starts, then reject
 results that don't fit the time that actually passed (a 2-second Memory run,
 50 answers in 30 seconds, ...). Good enough for a booth; staff can delete
 anything odd from the admin page.
+
+A player is identified by their Instagram username (unique, and what the crew
+uses to reach winners). It is stored but never returned by the public API.
 """
 
 import re
@@ -29,7 +32,7 @@ CREATE TABLE IF NOT EXISTS scores (
   id INTEGER PRIMARY KEY,
   game TEXT NOT NULL,
   name TEXT NOT NULL,
-  name_key TEXT NOT NULL,
+  ig TEXT NOT NULL,
   won INTEGER NOT NULL DEFAULT 0,
   matched INTEGER,
   moves INTEGER,
@@ -60,7 +63,19 @@ def clean_name(raw):
         raise Rejected("Please enter your name")
     if len(name) > NAME_MAX:
         raise Rejected(f"Name can be at most {NAME_MAX} characters")
-    return name, name.casefold()
+    return name
+
+
+IG_RE = re.compile(r"[a-z0-9._]{1,30}")
+
+
+def clean_ig(raw):
+    ig = raw.strip().lstrip("@").lower() if isinstance(raw, str) else ""
+    if not ig:
+        raise Rejected("Please enter your Instagram username")
+    if not IG_RE.fullmatch(ig):
+        raise Rejected("Instagram username can only have letters, numbers, . and _ (max 30)")
+    return ig
 
 
 def _int(d, key, lo, hi):
@@ -100,8 +115,9 @@ class Scores:
             raise Rejected("unknown or used game token")
         _, t0, seconds = entry
         elapsed = time.time() - t0
-        name, key = clean_name(body.get("name"))
-        row = {"game": game, "name": name, "name_key": key, "won": 0, "matched": None, "moves": None,
+        name = clean_name(body.get("name"))
+        ig = clean_ig(body.get("ig"))
+        row = {"game": game, "name": name, "ig": ig, "won": 0, "matched": None, "moves": None,
                "mistakes": None, "used": None, "correct": None, "answered": None, "created_at": time.time()}
         timed_out = elapsed >= seconds - SLACK
 
@@ -137,19 +153,19 @@ class Scores:
             self.db.execute(f"INSERT INTO scores ({cols}) VALUES ({', '.join('?' * len(row))})", list(row.values()))
             self.db.commit()
             board = self._board(game)
-        rank = next(i for i, r in enumerate(board, 1) if r["name_key"] == key)
+        rank = next(i for i, r in enumerate(board, 1) if r["ig"] == ig)
         return {"rank": rank, "players": len(board)}
 
     # --- reading ---------------------------------------------------------
 
     def _board(self, game):
-        """Best result per player name, best first. Call with the lock held."""
+        """Best result per player (Instagram username), best first. Call with the lock held."""
         rows = [dict(r) for r in self.db.execute("SELECT * FROM scores WHERE game = ?", (game,))]
         rows.sort(key=RANK[game])
         seen, best = set(), []
         for r in rows:
-            if r["name_key"] not in seen:
-                seen.add(r["name_key"])
+            if r["ig"] not in seen:
+                seen.add(r["ig"])
                 best.append(r)
         return best
 
@@ -158,15 +174,15 @@ class Scores:
             out = {}
             for g in games:
                 board = self._board(g)
-                fields = PUBLIC_FIELDS + (("name_key", "created_at") if admin else ())
+                fields = PUBLIC_FIELDS + (("ig", "created_at") if admin else ())
                 out[g] = {"players": len(board), "top": [{k: r[k] for k in fields} for r in board[:limit]]}
             return out
 
     # --- admin -----------------------------------------------------------
 
-    def delete_player(self, game, name_key):
+    def delete_player(self, game, ig):
         with self.lock:
-            n = self.db.execute("DELETE FROM scores WHERE game = ? AND name_key = ?", (game, name_key)).rowcount
+            n = self.db.execute("DELETE FROM scores WHERE game = ? AND ig = ?", (game, ig)).rowcount
             self.db.commit()
         return n
 

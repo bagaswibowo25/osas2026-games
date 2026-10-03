@@ -41,7 +41,13 @@
       <div class="intro">
         <p class="lead">A word appears. Is it a real Linux command, or did we make it up?</p>
         <p class="sub">Answer as many as you can in <span id="secs">30</span> seconds.</p>
-        <label class="name">Your name<input id="name" maxlength="20" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="go"></label>
+        <div class="fields">
+          <label class="name">Your name<input id="name" maxlength="20" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="next"></label>
+          <label class="name">Instagram username
+            <span class="ig-wrap"><input id="ig" maxlength="31" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" enterkeyhint="go"></span>
+            <small>Only the booth crew sees this, to reach winners. Not shown on the leaderboard.</small>
+          </label>
+        </div>
         <p class="name-err" id="name-err" role="alert"></p>
         <button class="btn-primary" id="start">Start</button>
         <div class="links">

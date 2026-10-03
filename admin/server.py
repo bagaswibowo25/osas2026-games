@@ -5,12 +5,12 @@ Admin (HTTP Basic auth, user "admin", password ADMIN_PASSWORD):
   GET  /api/config/<game>     current prize config
   PUT  /api/config/<game>     validate + save config/<game>.json (atomic replace)
   GET  /api/scores            every player's best result per game
-  POST /api/scores/delete     {"game", "name_key"}: remove one player from a board
+  POST /api/scores/delete     {"game", "ig"}: remove one player from a board
   POST /api/scores/reset      clear all leaderboards
 
 Public, reached by the game containers' nginx (/games/<game>/api/* -> /play/*):
   POST /play/start            {"game"} -> {"token"}
-  POST /play/finish           {"game", "token", "name", ...result} -> {"rank", "players"}
+  POST /play/finish           {"game", "token", "name", "ig", ...result} -> {"rank", "players"}
   GET  /play/leaderboard      top 10 per game
 """
 
@@ -210,10 +210,10 @@ class Handler(BaseHTTPRequestHandler):
             n = SCORES.reset()
             self.log_message("leaderboards reset (%d results)", n)
             return self._json(200, {"deleted": n})
-        if body.get("game") not in GAMES or not isinstance(body.get("name_key"), str):
-            return self._json(400, {"error": "need game and name_key"})
-        n = SCORES.delete_player(body["game"], body["name_key"])
-        self.log_message("deleted %r from %s (%d results)", body["name_key"], body["game"], n)
+        if body.get("game") not in GAMES or not isinstance(body.get("ig"), str):
+            return self._json(400, {"error": "need game and ig"})
+        n = SCORES.delete_player(body["game"], body["ig"])
+        self.log_message("deleted @%s from %s (%d results)", body["ig"], body["game"], n)
         self._json(200, {"deleted": n})
 
     def do_PUT(self):

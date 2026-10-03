@@ -91,17 +91,25 @@ window.Booth = (function () {
 
   // Check the name and get a one-time token for this round. Returns null if
   // the name is missing; a missing token (leaderboard down) still lets them play.
+  // Same rule as the server: letters, numbers, . and _, at most 30; a leading @ is fine.
+  const IG_RE = /^[a-z0-9._]{1,30}$/;
+
+  function fail(field, msg) {
+    $('#name-err').textContent = msg;
+    $(field).focus();
+    return null;
+  }
+
   async function begin(game) {
     const name = $('#name').value.replace(/\s+/g, ' ').trim();
-    if (!name) {
-      $('#name-err').textContent = 'Please enter your name first.';
-      $('#name').focus();
-      return null;
-    }
+    const ig = $('#ig').value.trim().replace(/^@/, '').toLowerCase();
+    if (!name) return fail('#name', 'Please enter your name first.');
+    if (!ig) return fail('#ig', 'Please enter your Instagram username.');
+    if (!IG_RE.test(ig)) return fail('#ig', 'Instagram username can only have letters, numbers, . and _');
     $('#name-err').textContent = '';
     let token = null;
     try { token = (await post('start', { game })).token; } catch (e) { console.warn('leaderboard unavailable:', e); }
-    return { game, name, token };
+    return { game, name, ig, token };
   }
 
   async function submit(session, result) {
@@ -109,20 +117,22 @@ window.Booth = (function () {
     if (!session.token) { el.textContent = 'Score not saved: leaderboard is offline.'; return; }
     el.textContent = 'Saving your score\u2026';
     try {
-      const r = await post('finish', Object.assign({ game: session.game, token: session.token, name: session.name }, result));
+      const r = await post('finish', Object.assign({ game: session.game, token: session.token, name: session.name, ig: session.ig }, result));
       el.textContent = session.name + ', you are #' + r.rank + ' of ' + r.players + ' players today.';
     } catch (e) {
       el.textContent = 'Score not saved: ' + e.message;
     }
   }
 
-  // Ready screen for the next player: empty name field.
+  // Ready screen for the next player: empty name and Instagram fields.
   function clearName() {
     $('#name').value = '';
+    $('#ig').value = '';
     $('#name-err').textContent = '';
   }
 
-  $('#name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#start').click(); });
+  $('#name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#ig').focus(); });
+  $('#ig').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#start').click(); });
 
   return { $, shuffle, show, countdown, finish, loadConfig, renderPrizes, begin, submit, clearName };
 })();
