@@ -41,8 +41,13 @@
       <div class="intro">
         <p class="lead">Tap a distro, then tap its package manager.</p>
         <p class="sub">6 pairs, <span id="secs">45</span> seconds.</p>
+        <label class="name">Your name<input id="name" maxlength="20" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="go"></label>
+        <p class="name-err" id="name-err" role="alert"></p>
         <button class="btn-primary" id="start">Start</button>
-        <a class="back" href="../">&larr; All games</a>
+        <div class="links">
+          <a class="back" href="../">&larr; All games</a>
+          <a class="back" href="../leaderboard/">Leaderboard</a>
+        </div>
       </div>
       <div class="prizes">
         <h2>Prizes</h2>
@@ -63,6 +68,7 @@
       <div class="result" id="result"></div>
       <div class="label">Your prize</div>
       <div class="prize" id="prize"></div>
+      <p class="rank" id="rank" aria-live="polite"></p>
       <p class="hint">Show this screen to the booth crew.</p>
       <button class="btn-ghost" id="again">Next player</button>
     </div>
@@ -71,7 +77,7 @@
 <script src="shared/game.js"></script>
 <script>
 (function () {
-  const { $, shuffle, show, countdown, finish, loadConfig, renderPrizes } = Booth;
+  const { $, shuffle, show, countdown, finish, loadConfig, renderPrizes, begin, submit, clearName } = Booth;
   // Overridden by config/distro.json. Tiers apply only when all 6 are matched;
   // the first tier whose maxMistakes fits wins (no maxMistakes = any number).
   const DEFAULTS = {
@@ -92,7 +98,7 @@
     { id: 'gen', d: 'Gentoo', pm: 'emerge' }
   ];
 
-  let sel, wrong, matched, mistakes, timer, flash;
+  let sel, wrong, matched, mistakes, timer, flash, session, starting = false;
   const leftCol = $('#left'), rightCol = $('#right');
 
   function render() {
@@ -118,6 +124,7 @@
     finish(won
       ? 'All 6 in ' + timer.used() + ' s with ' + mistakes + (mistakes === 1 ? ' mistake' : ' mistakes')
       : 'Time’s up. You matched ' + matched.length + ' of 6.', prize);
+    submit(session, { matched: matched.length, mistakes: mistakes, used: won ? timer.used() : undefined });
   }
 
   function pickLeft(id) {
@@ -154,7 +161,14 @@
     });
   }
 
-  function start() {
+  async function start() {
+    if (starting) return;
+    starting = true;
+    $('#start').disabled = true;
+    session = await begin('distro');
+    starting = false;
+    $('#start').disabled = false;
+    if (!session) return;
     const byId = Object.fromEntries(PAIRS.map((p) => [p.id, p]));
     const ids = PAIRS.map((p) => p.id);
     sel = null; wrong = null; matched = []; mistakes = 0;
@@ -172,6 +186,7 @@
   }
 
   async function ready() {
+    clearName();
     cfg = await loadConfig('distro', DEFAULTS);
     $('#secs').textContent = cfg.seconds;
     renderPrizes(cfg.tiers.map((t) => [tierText(t), t.prize]).concat([['Time ran out', cfg.fallback]]));

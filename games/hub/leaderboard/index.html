@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Booth Leaderboard</title>
+<link rel="stylesheet" href="../shared/base.css">
+<style>
+.app { max-width: 1600px; }
+.boards {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(16px, 2vw, 28px);
+  align-items: start;
+}
+.board { background: var(--panel); border-radius: 20px; padding: clamp(18px, 2vw, 28px); display: flex; flex-direction: column; gap: 6px; }
+.board h2 { margin: 0; font-size: clamp(22px, 2.2vw, 30px); font-weight: 800; }
+.board .rule { margin: 0 0 10px; font-size: 16px; color: var(--muted); }
+.board ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.board li {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  padding: 10px 0; border-top: 1px solid var(--line);
+  font-size: clamp(18px, 1.6vw, 22px);
+}
+.pos {
+  width: 36px; height: 36px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-weight: 700; font-size: 18px;
+  background: var(--bg); color: var(--muted);
+}
+li:nth-child(1) .pos { background: var(--green); color: var(--ink); }
+li:nth-child(2) .pos { background: var(--paper); color: var(--ink); }
+li:nth-child(3) .pos { background: var(--teal); color: var(--ink); }
+.who { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.score { font-family: var(--mono); font-weight: 700; color: var(--green); white-space: nowrap; font-size: clamp(16px, 1.4vw, 20px); }
+.score.dim { color: var(--muted); }
+.empty { padding: 18px 0; border-top: 1px solid var(--line); color: var(--muted); font-size: 20px; }
+.count { margin-top: 8px; font-size: 15px; color: var(--muted); }
+.foot { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 16px; }
+.foot a { color: var(--muted); }
+@media (max-width: 960px) { .boards { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<main class="app">
+  <header class="top">
+    <div>
+      <div class="eyebrow">openSUSE Asia Summit 2026</div>
+      <h1>Today’s Leaderboard</h1>
+    </div>
+  </header>
+
+  <div class="boards">
+    <section class="board" data-game="memory">
+      <h2>Geeko Memory Match</h2>
+      <p class="rule">Fastest to find every pair</p>
+      <ol></ol>
+      <div class="count"></div>
+    </section>
+    <section class="board" data-game="distro">
+      <h2>Distro Match</h2>
+      <p class="rule">Fewest mistakes, then fastest</p>
+      <ol></ol>
+      <div class="count"></div>
+    </section>
+    <section class="board" data-game="command">
+      <h2>Command or Not?</h2>
+      <p class="rule">Most correct answers</p>
+      <ol></ol>
+      <div class="count"></div>
+    </section>
+  </div>
+
+  <div class="foot">
+    <a href="../">&larr; All games</a>
+    <span id="updated" aria-live="polite"></span>
+  </div>
+</main>
+<script>
+(function () {
+  const REFRESH_MS = 10000;
+
+  function clock(s) { return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }
+  function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+
+  // [text, finished?] for one result row
+  const SCORE = {
+    memory: (r) => r.won ? [clock(r.used) + ' · ' + plural(r.moves, 'move'), true] : [r.matched + '/6 pairs', false],
+    distro: (r) => r.won ? [clock(r.used) + ' · ' + plural(r.mistakes, 'mistake'), true] : [r.matched + '/6 matched', false],
+    command: (r) => [r.correct + ' correct', true]
+  };
+
+  function render(game, data) {
+    const board = document.querySelector('.board[data-game="' + game + '"]');
+    const list = board.querySelector('ol');
+    list.textContent = '';
+    if (!data.top.length) {
+      const li = document.createElement('li');
+      li.className = 'empty';
+      li.textContent = 'No players yet. Be the first!';
+      list.appendChild(li);
+    }
+    data.top.forEach((r, i) => {
+      const li = document.createElement('li');
+      const pos = document.createElement('span');
+      pos.className = 'pos';
+      pos.textContent = i + 1;
+      const who = document.createElement('span');
+      who.className = 'who';
+      who.textContent = r.name;
+      const [text, done] = SCORE[game](r);
+      const score = document.createElement('span');
+      score.className = 'score' + (done ? '' : ' dim');
+      score.textContent = text;
+      li.append(pos, who, score);
+      list.appendChild(li);
+    });
+    board.querySelector('.count').textContent = data.players ? plural(data.players, 'player') + ' today' : '';
+  }
+
+  async function refresh() {
+    try {
+      const r = await fetch('../api/leaderboard', { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const all = await r.json();
+      Object.keys(SCORE).forEach((g) => render(g, all[g] || { top: [], players: 0 }));
+      document.getElementById('updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    } catch (e) {
+      document.getElementById('updated').textContent = 'Could not refresh (' + e.message + '), retrying…';
+    }
+  }
+
+  refresh();
+  setInterval(refresh, REFRESH_MS);
+})();
+</script>
+</body>
+</html>

@@ -1,13 +1,17 @@
-"""Prize admin for the booth games.
+"""Prize admin and leaderboard for the booth games. Standard library only.
 
-Serves the admin page and a tiny JSON API that reads/writes config/<game>.json,
-the same files the game containers serve to the tablets. Standard library only.
+Admin (HTTP Basic auth, user "admin", password ADMIN_PASSWORD):
+  GET  /                      admin page
+  GET  /api/config/<game>     current prize config
+  PUT  /api/config/<game>     validate + save config/<game>.json (atomic replace)
+  GET  /api/scores            every player's best result per game
+  POST /api/scores/delete     {"game", "name_key"}: remove one player from a board
+  POST /api/scores/reset      clear all leaderboards
 
-  GET  /                   admin page
-  GET  /api/config/<game>  current config
-  PUT  /api/config/<game>  validate + save (atomic replace)
-
-Every request needs HTTP Basic auth (user "admin", password ADMIN_PASSWORD).
+Public, reached by the game containers' nginx (/games/<game>/api/* -> /play/*):
+  POST /play/start            {"game"} -> {"token"}
+  POST /play/finish           {"game", "token", "name", ...result} -> {"rank", "players"}
+  GET  /play/leaderboard      top 10 per game
 """
 
 import base64
@@ -20,10 +24,13 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from scores import Rejected, Scores
+
 CONFIG_DIR = Path(os.environ.get("CONFIG_DIR", "/config"))
 STATIC_DIR = Path(__file__).parent / "static"
 PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 MAX_BODY = 16 * 1024
+SCORES = Scores(os.environ.get("SCORES_DB", "/data/scores.db"))
 
 # Per game: the tier field that sets the condition, and whether it may be left empty.
 GAMES = {
@@ -91,6 +98,13 @@ def save(game, cfg):
         raise
 
 
+def game_seconds(game):
+    try:
+        return validate(game, json.loads((CONFIG_DIR / f"{game}.json").read_text()))["seconds"]
+    except (OSError, ValueError):
+        return {"memory": 60, "distro": 45, "command": 30}[game]
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "booth-admin"
 
@@ -128,11 +142,34 @@ class Handler(BaseHTTPRequestHandler):
             return None
         return m.group(1)
 
+    def _body(self):
+        """Parsed JSON body, or None after sending an error response."""
+        # JSON content type forces a CORS preflight, so other sites cannot submit this cross-origin.
+        if self.headers.get("Content-Type", "").split(";")[0] != "application/json":
+            self._json(415, {"error": "expected application/json"})
+            return None
+        length = int(self.headers.get("Content-Length") or 0)
+        if length > MAX_BODY:
+            self._json(413, {"error": "too large"})
+            return None
+        try:
+            body = json.loads(self.rfile.read(length))
+        except ValueError:
+            body = None
+        if not isinstance(body, dict):
+            self._json(400, {"error": "expected a JSON object"})
+            return None
+        return body
+
     def do_GET(self):
         if self.path == "/healthz":
             return self._send(200, b"ok\n", "text/plain")
+        if self.path == "/play/leaderboard":
+            return self._json(200, SCORES.leaderboard(GAMES))
         if not self._authed():
             return
+        if self.path == "/api/scores":
+            return self._json(200, SCORES.leaderboard(GAMES, limit=500, admin=True))
         if self.path.startswith("/api/"):
             game = self._game()
             if game:
@@ -147,21 +184,50 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(404, b"Not found\n", "text/plain")
         self._send(200, f.read_bytes(), STATIC_TYPES.get(f.suffix, "application/octet-stream"))
 
+    def do_POST(self):
+        if self.path in ("/play/start", "/play/finish"):
+            body = self._body()
+            if body is None:
+                return
+            game = body.get("game")
+            if game not in GAMES:
+                return self._json(404, {"error": "unknown game"})
+            try:
+                if self.path == "/play/start":
+                    return self._json(200, {"token": SCORES.start(game, game_seconds(game))})
+                return self._json(200, SCORES.finish(game, body))
+            except Rejected as e:
+                self.log_message("rejected %s result: %s", game, e)
+                return self._json(422, {"error": str(e)})
+        if not self._authed():
+            return
+        if self.path not in ("/api/scores/delete", "/api/scores/reset"):
+            return self._json(404, {"error": "not found"})
+        body = self._body()
+        if body is None:
+            return
+        if self.path == "/api/scores/reset":
+            n = SCORES.reset()
+            self.log_message("leaderboards reset (%d results)", n)
+            return self._json(200, {"deleted": n})
+        if body.get("game") not in GAMES or not isinstance(body.get("name_key"), str):
+            return self._json(400, {"error": "need game and name_key"})
+        n = SCORES.delete_player(body["game"], body["name_key"])
+        self.log_message("deleted %r from %s (%d results)", body["name_key"], body["game"], n)
+        self._json(200, {"deleted": n})
+
     def do_PUT(self):
         if not self._authed():
             return
         game = self._game()
         if not game:
             return
-        # JSON content type forces a CORS preflight, so other sites cannot submit this cross-origin.
-        if self.headers.get("Content-Type", "").split(";")[0] != "application/json":
-            return self._json(415, {"error": "expected application/json"})
-        length = int(self.headers.get("Content-Length") or 0)
-        if length > MAX_BODY:
-            return self._json(413, {"error": "too large"})
+        body = self._body()
+        if body is None:
+            return
         try:
-            cfg = validate(game, json.loads(self.rfile.read(length)))
-        except (ValueError, Invalid) as e:
+            cfg = validate(game, body)
+        except Invalid as e:
             return self._json(400, {"error": str(e)})
         save(game, cfg)
         self.log_message("saved %s.json", game)

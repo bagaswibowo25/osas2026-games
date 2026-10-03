@@ -35,6 +35,15 @@ input:focus { outline: none; border-color: var(--teal); }
 .btn.save:hover { background: var(--green-hi); }
 .btn:disabled { opacity: .5; cursor: wait; }
 .status { font-size: 16px; font-weight: 600; }
+.btn.danger { background: transparent; border: 2px solid var(--warn); color: var(--warn); }
+.btn.danger:hover { background: var(--warn); color: var(--ink); }
+.lb-game h3 { margin: 8px 0 4px; font-size: 20px; }
+.lb-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto 96px; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 17px; }
+.lb-row .who { font-weight: 700; overflow-wrap: anywhere; }
+.lb-row .sc { font-family: var(--mono); color: var(--green); white-space: nowrap; }
+.lb-row .del { min-height: 40px; border-radius: 10px; border: 2px solid var(--line); background: transparent; color: #FFFFFF; font-size: 15px; font-weight: 700; }
+.lb-row .del:hover { border-color: var(--warn); color: var(--warn); }
+.lb-empty { padding: 8px 0; border-top: 1px solid var(--line); color: var(--muted); }
 .status.ok { color: var(--green); }
 .status.err { color: var(--warn); }
 a { color: var(--green); }
@@ -53,6 +62,17 @@ a { color: var(--green); }
     Players who qualify for none get the fallback prize. Changes reach a tablet the next time someone taps
     <strong>Next player</strong> or reloads the game.</p>
   <div id="games"></div>
+
+  <section class="game" id="lb">
+    <h2>Leaderboard <a href="../leaderboard/" target="_blank" rel="noopener">open</a></h2>
+    <p class="help">Each player's best result per game. Delete removes all of that player's results in that game
+      (use it for rude or fake names). Reset clears every leaderboard, for example before the next event day.</p>
+    <div id="lb-games"></div>
+    <div class="actions">
+      <button type="button" class="btn danger" id="reset">Reset all leaderboards</button>
+      <span class="status" id="lb-status" role="status"></span>
+    </div>
+  </section>
 </main>
 
 <template id="game-tpl">
@@ -181,6 +201,76 @@ a { color: var(--green); }
   }
 
   GAMES.forEach(mount);
+
+  // --- Leaderboard moderation -------------------------------------------
+  function url(path) { return new URL(path, location.origin + location.pathname).href; }
+  async function call(path, body) {
+    const r = await fetch(url(path), body === undefined ? { cache: 'no-store' } : {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'HTTP ' + r.status);
+    return data;
+  }
+  const clock = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  const SCORE = {
+    memory: (r) => r.won ? clock(r.used) + ', ' + r.moves + ' moves' : r.matched + '/6 pairs',
+    distro: (r) => r.won ? clock(r.used) + ', ' + r.mistakes + ' mistakes' : r.matched + '/6 matched',
+    command: (r) => r.correct + ' of ' + r.answered + ' correct'
+  };
+  const lbStatus = document.getElementById('lb-status');
+
+  async function loadScores() {
+    const box = document.getElementById('lb-games');
+    let all;
+    try { all = await call('api/scores'); } catch (e) { lbStatus.textContent = 'Could not load: ' + e.message; lbStatus.className = 'status err'; return; }
+    box.textContent = '';
+    GAMES.forEach((g) => {
+      const data = all[g.id] || { top: [], players: 0 };
+      const sec = document.createElement('div');
+      sec.className = 'lb-game';
+      const h = document.createElement('h3');
+      h.textContent = g.title + ' (' + data.players + ')';
+      sec.appendChild(h);
+      if (!data.top.length) {
+        const e = document.createElement('div');
+        e.className = 'lb-empty';
+        e.textContent = 'No players yet.';
+        sec.appendChild(e);
+      }
+      data.top.forEach((r, i) => {
+        const row = document.createElement('div');
+        row.className = 'lb-row';
+        const pos = document.createElement('span'); pos.textContent = i + 1;
+        const who = document.createElement('span'); who.className = 'who'; who.textContent = r.name;
+        const sc = document.createElement('span'); sc.className = 'sc'; sc.textContent = SCORE[g.id](r);
+        const del = document.createElement('button');
+        del.type = 'button'; del.className = 'del'; del.textContent = 'Delete';
+        del.setAttribute('aria-label', 'Delete ' + r.name + ' from ' + g.title);
+        del.addEventListener('click', async () => {
+          if (!confirm('Remove "' + r.name + '" from the ' + g.title + ' leaderboard?')) return;
+          try { await call('api/scores/delete', { game: g.id, name_key: r.name_key }); loadScores(); }
+          catch (e) { lbStatus.textContent = 'Not deleted: ' + e.message; lbStatus.className = 'status err'; }
+        });
+        row.append(pos, who, sc, del);
+        sec.appendChild(row);
+      });
+      box.appendChild(sec);
+    });
+  }
+
+  document.getElementById('reset').addEventListener('click', async () => {
+    if (!confirm('Reset ALL leaderboards? Every result in all three games is deleted. This cannot be undone.')) return;
+    try {
+      const r = await call('api/scores/reset', {});
+      lbStatus.textContent = 'Reset: ' + r.deleted + ' results deleted';
+      lbStatus.className = 'status ok';
+      loadScores();
+    } catch (e) { lbStatus.textContent = 'Not reset: ' + e.message; lbStatus.className = 'status err'; }
+  });
+
+  loadScores();
+  setInterval(loadScores, 15000);
 })();
 </script>
 </body>

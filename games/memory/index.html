@@ -52,8 +52,13 @@
       <div class="intro">
         <p class="lead">Flip two cards at a time. Match each openSUSE tool with what it does.</p>
         <p class="sub">6 pairs, <span id="secs">60</span> seconds.</p>
+        <label class="name">Your name<input id="name" maxlength="20" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="go"></label>
+        <p class="name-err" id="name-err" role="alert"></p>
         <button class="btn-primary" id="start">Start</button>
-        <a class="back" href="../">&larr; All games</a>
+        <div class="links">
+          <a class="back" href="../">&larr; All games</a>
+          <a class="back" href="../leaderboard/">Leaderboard</a>
+        </div>
       </div>
       <div class="prizes">
         <h2>Prizes</h2>
@@ -71,6 +76,7 @@
       <div class="result" id="result"></div>
       <div class="label">Your prize</div>
       <div class="prize" id="prize"></div>
+      <p class="rank" id="rank" aria-live="polite"></p>
       <p class="hint">Show this screen to the booth crew.</p>
       <button class="btn-ghost" id="again">Next player</button>
     </div>
@@ -79,7 +85,7 @@
 <script src="shared/game.js"></script>
 <script>
 (function () {
-  const { $, shuffle, show, countdown, finish, loadConfig, renderPrizes } = Booth;
+  const { $, shuffle, show, countdown, finish, loadConfig, renderPrizes, begin, submit, clearName } = Booth;
   // Overridden by config/memory.json. Tiers apply only when every pair is
   // found; the first tier whose maxSeconds fits wins (no maxSeconds = any time).
   const DEFAULTS = {
@@ -100,7 +106,7 @@
     { id: 'leap', tool: 'Leap', does: 'Stable, regular releases' }
   ];
 
-  let cards, open, matched, moves, timer, flipBack;
+  let cards, open, matched, moves, timer, flipBack, session, starting = false;
   const board = $('#board');
 
   function render() {
@@ -124,6 +130,7 @@
     finish(won
       ? 'All ' + PAIRS.length + ' pairs in ' + used + ' s, ' + moves + ' moves'
       : 'Time’s up. You found ' + matched.length + ' of ' + PAIRS.length + ' pairs.', prize);
+    submit(session, { matched: matched.length, moves: moves, used: won ? used : undefined });
   }
 
   function flip(i) {
@@ -143,7 +150,14 @@
     render();
   }
 
-  function start() {
+  async function start() {
+    if (starting) return;
+    starting = true;
+    $('#start').disabled = true;
+    session = await begin('memory');
+    starting = false;
+    $('#start').disabled = false;
+    if (!session) return;
     cards = shuffle(PAIRS.flatMap((p) => [
       { pair: p.id, text: p.tool, kind: 'tool' },
       { pair: p.id, text: p.does, kind: 'does' }
@@ -162,6 +176,7 @@
   }
 
   async function ready() {
+    clearName();
     cfg = await loadConfig('memory', DEFAULTS);
     $('#secs').textContent = cfg.seconds;
     renderPrizes(cfg.tiers.map((t) => [

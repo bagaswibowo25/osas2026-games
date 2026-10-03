@@ -76,5 +76,53 @@ window.Booth = (function () {
     });
   }
 
-  return { $, shuffle, show, countdown, finish, loadConfig, renderPrizes };
+  // --- Leaderboard ------------------------------------------------------
+  // api/* is proxied by this container's nginx to the admin service.
+  async function post(path, body) {
+    const r = await fetch('api/' + path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || 'HTTP ' + r.status);
+    return data;
+  }
+
+  // Check the name and get a one-time token for this round. Returns null if
+  // the name is missing; a missing token (leaderboard down) still lets them play.
+  async function begin(game) {
+    const name = $('#name').value.replace(/\s+/g, ' ').trim();
+    if (!name) {
+      $('#name-err').textContent = 'Please enter your name first.';
+      $('#name').focus();
+      return null;
+    }
+    $('#name-err').textContent = '';
+    let token = null;
+    try { token = (await post('start', { game })).token; } catch (e) { console.warn('leaderboard unavailable:', e); }
+    return { game, name, token };
+  }
+
+  async function submit(session, result) {
+    const el = $('#rank');
+    if (!session.token) { el.textContent = 'Score not saved: leaderboard is offline.'; return; }
+    el.textContent = 'Saving your score\u2026';
+    try {
+      const r = await post('finish', Object.assign({ game: session.game, token: session.token, name: session.name }, result));
+      el.textContent = session.name + ', you are #' + r.rank + ' of ' + r.players + ' players today.';
+    } catch (e) {
+      el.textContent = 'Score not saved: ' + e.message;
+    }
+  }
+
+  // Ready screen for the next player: empty name field.
+  function clearName() {
+    $('#name').value = '';
+    $('#name-err').textContent = '';
+  }
+
+  $('#name').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('#start').click(); });
+
+  return { $, shuffle, show, countdown, finish, loadConfig, renderPrizes, begin, submit, clearName };
 })();

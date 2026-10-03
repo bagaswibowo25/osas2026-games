@@ -6,6 +6,13 @@
 <title>Booth Games</title>
 <link rel="stylesheet" href="shared/base.css">
 <style>
+.hub-lead { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.lb-link {
+  display: inline-flex; align-items: center; min-height: 52px; padding: 0 22px;
+  border: 2px solid var(--green); border-radius: 14px;
+  color: #FFFFFF; text-decoration: none; font-size: 20px; font-weight: 700;
+}
+.lb-link:hover { background: var(--panel); }
 .lead { margin: 0; font-size: clamp(24px, 3.2vw, 36px); font-weight: 600; line-height: 1.2; }
 .picks {
   flex: 1;
@@ -52,7 +59,10 @@
       <h1>Booth Games</h1>
     </div>
   </header>
-  <p class="lead">Pick a game. Every player wins something.</p>
+  <div class="hub-lead">
+    <p class="lead">Pick a game. Every player wins something.</p>
+    <a class="lb-link" href="leaderboard/">Today’s leaderboard &rarr;</a>
+  </div>
 
   <nav class="picks" aria-label="Games">
     <a class="pick" href="memory/" data-game="memory">

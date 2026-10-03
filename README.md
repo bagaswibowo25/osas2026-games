@@ -10,7 +10,8 @@ Tiap game 30–60 detik, didesain untuk tablet tapi tetap jalan di HP.
 | Command or Not?: perintah Linux asli atau karangan? (48 kata acak) | `/games/command/` | 30 s | ≥12 benar: Pin + sticker · 7–11: Sticker pack · <7: Candy |
 
 Peserta mulai dari halaman pilih game di **`/games/`** (kartu tiap game menampilkan durasi dan hadiah tertinggi
-dari config saat ini). Hadiah di atas adalah default; kru booth bisa mengubahnya dari web di **`/games/admin/`** (lihat di bawah).
+dari config saat ini). Pemain wajib mengisi nama sebelum Start; hasilnya masuk **leaderboard harian** di **`/games/leaderboard/`**
+(top 10 per game, refresh otomatis, cocok untuk TV booth). Hadiah di atas adalah default; kru booth bisa mengubahnya dari web di **`/games/admin/`** (lihat di bawah).
 
 Live: https://quiz.opensuse.id/games/ (pilih game) · https://quiz.opensuse.id/games/memory/ · https://quiz.opensuse.id/games/distro/ · https://quiz.opensuse.id/games/command/
 
@@ -25,7 +26,10 @@ shared/                   style, helper JS (timer, shuffle, layar), font self-ho
 Dockerfile                nginx:alpine, --build-arg GAME=<memory|distro|command>
 docker-compose.yml        container: games-hub, games-memory, games-distro, games-command, games-admin
 admin/                    halaman admin hadiah + API kecil (Python stdlib), container games-admin
+admin/scores.py           penyimpanan leaderboard (SQLite) + cek kewajaran skor
 config/<game>.json        hadiah/syarat/durasi per game (ditulis oleh admin)
+data/scores.db            database leaderboard (di server, tidak di git)
+games/hub/leaderboard/    halaman leaderboard di /games/leaderboard/
 deploy/nginx.conf         config nginx di dalam container
 deploy/Caddyfile.snippet  route yang ditambahkan ke Caddyfile.prod ClassQuiz
 ```
@@ -65,6 +69,20 @@ Contoh: tambah hadiah kaos untuk ≥15 benar di Command or Not:
 }
 ```
 
+## Leaderboard
+
+- Nama wajib diisi (maks. 20 karakter). Per game hanya hasil terbaik tiap nama yang tampil
+  (`Budi` dan `budi` dianggap orang yang sama).
+- Peringkat: **Memory** selesai tercepat, lalu langkah paling sedikit; **Distro** salah paling sedikit, lalu
+  tercepat; **Command** benar terbanyak, lalu salah paling sedikit. Yang belum selesai diurutkan di bawahnya.
+- Skor dihitung di browser, jadi server memberi token sekali pakai saat Start dan menolak hasil yang tidak
+  sesuai waktu sebenarnya (Memory selesai 2 detik, 50 jawaban dalam 30 detik, kirim sebelum waktu habis, ...).
+  Ini cukup untuk booth, tapi bukan anti-curang penuh.
+- **Hanya admin** yang bisa menghapus pemain (misalnya nama tidak pantas) atau **reset** semua leaderboard,
+  dari bagian *Leaderboard* di `/games/admin/`.
+- Game memanggil `api/*` relatif ke path-nya; nginx di tiap container meneruskannya ke `games-admin:8080/play/*`,
+  jadi tidak perlu route Caddy tambahan. Kalau admin mati, game tetap bisa dimainkan (skor tidak tersimpan).
+
 ## Coba lokal
 
 ```bash
@@ -78,15 +96,18 @@ Server sudah menjalankan stack ClassQuiz (`~/ClassQuiz`, compose project `classq
 memegang port 80/443, jadi container game **tidak** membuka port sendiri. Mereka bergabung ke network
 `classquiz_default` dan Caddy meneruskan path `/games/<game>/` ke container masing-masing.
 
+Backup leaderboard: `sudo docker compose exec admin python -c "import sqlite3; sqlite3.connect('/data/scores.db').backup(sqlite3.connect('/data/backup.db'))"`
+lalu salin `data/backup.db`.
+
 ```bash
 # 1. kirim kode ke server (repo private, jadi pakai rsync).
 #    config/ dikecualikan agar hadiah yang sudah diedit kru di server tidak tertimpa;
 #    baris kedua hanya menyalin file config yang belum ada di server.
-rsync -az --delete --exclude .git --exclude config/ --exclude .env ./ aryulianto@quiz.opensuse.id:osas2026-games/
+rsync -az --delete --exclude .git --exclude config/ --exclude data/ --exclude .env ./ aryulianto@quiz.opensuse.id:osas2026-games/
 rsync -az --ignore-existing config/ aryulianto@quiz.opensuse.id:osas2026-games/config/
 
-# 2. hanya pertama kali: buat password admin
-ssh aryulianto@quiz.opensuse.id 'cd osas2026-games && [ -f .env ] || (umask 077; echo "ADMIN_PASSWORD=$(openssl rand -base64 18)" > .env)'
+# 2. hanya pertama kali: buat password admin dan folder data (milik user biasa, bukan root)
+ssh aryulianto@quiz.opensuse.id 'cd osas2026-games && mkdir -p data && ([ -f .env ] || (umask 077; echo "ADMIN_PASSWORD=$(openssl rand -base64 18)" > .env))'
 
 # 3. build & jalankan
 ssh aryulianto@quiz.opensuse.id 'cd osas2026-games && sudo docker compose up -d --build'

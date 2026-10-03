@@ -2,7 +2,8 @@ name: osas2026-games
 
 # Each game is its own container. They join the ClassQuiz stack's network so
 # its Caddy (which owns ports 80/443 on quiz.opensuse.id) can proxy to them:
-#   /games/        -> games-hub:80      (game picker)
+#   /games/        -> games-hub:80      (game picker, /games/leaderboard/)
+#   /games/*/api/  -> games-admin:8080/play/ via each container's nginx (scores)
 #   /games/memory  -> games-memory:80
 #   /games/distro  -> games-distro:80
 #   /games/command -> games-command:80
@@ -59,6 +60,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
     volumes:
       - ./config:/config
+      - ./data:/data        # scores.db (leaderboard)
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
       interval: 30s
