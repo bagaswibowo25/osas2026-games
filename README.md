@@ -6,7 +6,7 @@ Tiap game 30–60 detik, didesain untuk tablet tapi tetap jalan di HP.
 | Game | Path | Durasi | Hadiah |
 |---|---|---|---|
 | Geeko Memory Match: pasangkan tool openSUSE dengan fungsinya | `/games/memory/` | 60 s | ≤40 s: Pin + sticker · selesai: Sticker pack · waktu habis: Candy |
-| Distro Match: pasangkan distro dengan package manager-nya | `/games/distro/` | 45 s | tanpa salah: Pin + sticker · selesai: Sticker pack · waktu habis: Candy |
+| Distro Match: pasangkan distro dengan package manager-nya (8 pasang acak dari 16 package manager / 30 distro) | `/games/distro/` | 45 s | tanpa salah: Pin + sticker · selesai: Sticker pack · waktu habis: Candy |
 | Command or Not?: perintah Linux asli atau karangan? (48 kata acak) | `/games/command/` | 30 s | ≥12 benar: Pin + sticker · 7–11: Sticker pack · <7: Candy |
 
 Peserta mulai dari halaman pilih game di **`/games/`** (kartu tiap game menampilkan durasi dan hadiah tertinggi

@@ -18,6 +18,7 @@ import time
 import unicodedata
 
 TOP_N = 10
+PAIRS = {"memory": 6, "distro": 8}  # pairs to find for a finished round
 NAME_MAX = 20
 SLACK = 3            # seconds of network/clock slack allowed when comparing times
 MAX_PENDING = 2000   # cap on outstanding start tokens
@@ -122,8 +123,8 @@ class Scores:
         timed_out = elapsed >= seconds - SLACK
 
         if game in ("memory", "distro"):
-            row["matched"] = _int(body, "matched", 0, 6)
-            row["won"] = int(row["matched"] == 6)
+            row["matched"] = _int(body, "matched", 0, PAIRS[game])
+            row["won"] = int(row["matched"] == PAIRS[game])
             if game == "memory":
                 row["moves"] = _int(body, "moves", row["matched"], 500)
             else:

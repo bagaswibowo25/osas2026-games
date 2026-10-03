@@ -222,7 +222,7 @@ a { color: var(--green); }
   const clock = (s) => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   const SCORE = {
     memory: (r) => r.won ? clock(r.used) + ', ' + r.moves + ' moves' : r.matched + '/6 pairs',
-    distro: (r) => r.won ? clock(r.used) + ', ' + r.mistakes + ' mistakes' : r.matched + '/6 matched',
+    distro: (r) => r.won ? clock(r.used) + ', ' + r.mistakes + ' mistakes' : r.matched + ' matched',
     command: (r) => r.correct + ' of ' + r.answered + ' correct'
   };
   const lbStatus = document.getElementById('lb-status');

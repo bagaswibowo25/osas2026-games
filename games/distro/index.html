@@ -7,13 +7,13 @@
 <link rel="stylesheet" href="shared/base.css">
 <style>
 .columns { flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(16px, 8vw, 96px); }
-.col { display: flex; flex-direction: column; gap: 12px; }
+.col { display: flex; flex-direction: column; gap: 10px; }
 .col h2 { margin: 0 0 4px; font-size: 20px; font-weight: 600; color: var(--muted); }
 .item {
-  min-height: 68px; flex: 1;
+  min-height: 56px; flex: 1;
   border-radius: 14px; border: 2px solid var(--line);
   background: var(--panel); color: #FFFFFF;
-  font-size: clamp(20px, 2.6vw, 28px); font-weight: 700;
+  font-size: clamp(18px, 2.3vw, 26px); font-weight: 700; line-height: 1.15;
   text-align: left; padding: 0 clamp(14px, 2vw, 24px);
   transition: background .15s;
 }
@@ -31,7 +31,7 @@
       <h1>Distro Match</h1>
     </div>
     <div class="stats" id="stats" hidden>
-      <div class="pill"><span id="count">0</span>/6 matched</div>
+      <div class="pill"><span id="count">0</span>/<span id="total">8</span> matched</div>
       <div class="pill" id="timer">0:45</div>
     </div>
   </header>
@@ -40,7 +40,7 @@
     <div class="ready">
       <div class="intro">
         <p class="lead">Tap a distro, then tap its package manager.</p>
-        <p class="sub">6 pairs, <span id="secs">45</span> seconds.</p>
+        <p class="sub"><span id="pairs">8</span> random pairs, <span id="secs">45</span> seconds. Different every round.</p>
         <div class="fields">
           <label class="name">Your name<input id="name" maxlength="20" autocomplete="off" autocapitalize="words" spellcheck="false" enterkeyhint="next"></label>
           <label class="name">Instagram username
@@ -84,7 +84,7 @@
 <script>
 (function () {
   const { $, shuffle, show, countdown, finish, loadConfig, renderPrizes, begin, submit, clearName } = Booth;
-  // Overridden by config/distro.json. Tiers apply only when all 6 are matched;
+  // Overridden by config/distro.json. Tiers apply only when all pairs are matched;
   // the first tier whose maxMistakes fits wins (no maxMistakes = any number).
   const DEFAULTS = {
     seconds: 45,
@@ -95,14 +95,30 @@
     fallback: 'Candy'
   };
   let cfg = DEFAULTS;
-  const PAIRS = [
-    { id: 'suse', d: 'openSUSE', pm: 'zypper' },
-    { id: 'deb', d: 'Debian', pm: 'apt' },
-    { id: 'fed', d: 'Fedora', pm: 'dnf' },
-    { id: 'arch', d: 'Arch Linux', pm: 'pacman' },
-    { id: 'alp', d: 'Alpine', pm: 'apk' },
-    { id: 'gen', d: 'Gentoo', pm: 'emerge' }
-  ];
+  // Each round takes PER_ROUND package managers at random and, for each, one of
+  // its distros at random. Package managers are unique, so every round has exactly
+  // one right answer per distro. Must match PAIRS["distro"] in admin/scores.py.
+  const PER_ROUND = 8;
+  const POOL = {
+    'zypper': ['openSUSE Tumbleweed', 'openSUSE Leap', 'SUSE Linux Enterprise'],
+    'transactional-update': ['openSUSE MicroOS'],
+    'apt': ['Debian', 'Ubuntu', 'Linux Mint', 'Pop!_OS', 'Kali Linux', 'elementary OS'],
+    'dnf': ['Fedora', 'Red Hat Enterprise Linux', 'Rocky Linux', 'AlmaLinux', 'CentOS Stream'],
+    'tdnf': ['Photon OS'],
+    'rpm-ostree': ['Fedora Silverblue'],
+    'pacman': ['Arch Linux', 'Manjaro', 'EndeavourOS'],
+    'apk': ['Alpine Linux', 'postmarketOS'],
+    'emerge': ['Gentoo'],
+    'xbps-install': ['Void Linux'],
+    'nix-env': ['NixOS'],
+    'guix': ['Guix System'],
+    'eopkg': ['Solus'],
+    'slackpkg': ['Slackware'],
+    'urpmi': ['Mageia'],
+    'tce-load': ['Tiny Core Linux']
+  };
+  const pick = (a) => a[Math.floor(Math.random() * a.length)];
+  let round = [];  // [{ id, d, pm }], id = package manager
 
   let sel, wrong, matched, mistakes, timer, flash, session, starting = false;
   const leftCol = $('#left'), rightCol = $('#right');
@@ -128,8 +144,8 @@
     const tier = won && cfg.tiers.find((t) => t.maxMistakes == null || mistakes <= t.maxMistakes);
     const prize = tier ? tier.prize : cfg.fallback;
     finish(won
-      ? 'All 6 in ' + timer.used() + ' s with ' + mistakes + (mistakes === 1 ? ' mistake' : ' mistakes')
-      : 'Time’s up. You matched ' + matched.length + ' of 6.', prize);
+      ? 'All ' + PER_ROUND + ' in ' + timer.used() + ' s with ' + mistakes + (mistakes === 1 ? ' mistake' : ' mistakes')
+      : 'Time’s up. You matched ' + matched.length + ' of ' + PER_ROUND + '.', prize);
     submit(session, { matched: matched.length, mistakes: mistakes, used: won ? timer.used() : undefined });
   }
 
@@ -145,7 +161,7 @@
       matched.push(id);
       sel = null;
       render();
-      if (matched.length === PAIRS.length) end(true);
+      if (matched.length === round.length) end(true);
     } else {
       mistakes += 1;
       wrong = id;
@@ -175,8 +191,9 @@
     starting = false;
     $('#start').disabled = false;
     if (!session) return;
-    const byId = Object.fromEntries(PAIRS.map((p) => [p.id, p]));
-    const ids = PAIRS.map((p) => p.id);
+    round = shuffle(Object.keys(POOL)).slice(0, PER_ROUND).map((pm) => ({ id: pm, d: pick(POOL[pm]), pm: pm }));
+    const byId = Object.fromEntries(round.map((p) => [p.id, p]));
+    const ids = round.map((p) => p.id);
     sel = null; wrong = null; matched = []; mistakes = 0;
     fill(leftCol, shuffle(ids.slice()), (id) => byId[id].d, 'distro', pickLeft);
     fill(rightCol, shuffle(ids.slice()), (id) => byId[id].pm, 'pm', pickRight);
@@ -186,15 +203,17 @@
   }
 
   function tierText(t) {
-    if (t.maxMistakes == null) return 'All 6 before time runs out';
-    if (t.maxMistakes === 0) return 'All 6 with no mistakes';
-    return 'All 6 with at most ' + t.maxMistakes + (t.maxMistakes === 1 ? ' mistake' : ' mistakes');
+    const all = 'All ' + PER_ROUND;
+    if (t.maxMistakes == null) return all + ' before time runs out';
+    if (t.maxMistakes === 0) return all + ' with no mistakes';
+    return all + ' with at most ' + t.maxMistakes + (t.maxMistakes === 1 ? ' mistake' : ' mistakes');
   }
 
   async function ready() {
     clearName();
     cfg = await loadConfig('distro', DEFAULTS);
     $('#secs').textContent = cfg.seconds;
+    $('#pairs').textContent = $('#total').textContent = PER_ROUND;
     renderPrizes(cfg.tiers.map((t) => [tierText(t), t.prize]).concat([['Time ran out', cfg.fallback]]));
     show('ready');
   }
