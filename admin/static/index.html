@@ -81,6 +81,29 @@ a { color: var(--green); }
   <p class="help">Prizes are checked top to bottom: the first row a player qualifies for is what they win.
     Players who qualify for none get the fallback prize. Changes reach a tablet the next time someone taps
     <strong>Next player</strong> or reloads the game.</p>
+  <section class="game" id="lgs">
+    <h2>Last Geeko Standing <a href="../last-geeko-standing/host" target="_blank" rel="noopener">host screen</a></h2>
+    <p class="help">The main hall game (not on the booth games page). While it is <strong>locked</strong>, people who
+      scan the QR code see "not open yet" and cannot join. Open it just before the session, lock it again after.
+      Players already in the game are not affected. Player page:
+      <a href="../last-geeko-standing/" target="_blank" rel="noopener">/games/last-geeko-standing/</a></p>
+    <div class="actions">
+      <span class="status" id="lgs-state" style="font-size:20px">…</span>
+      <button type="button" class="btn save" id="lgs-toggle" disabled>…</button>
+      <span class="status" id="lgs-status" role="status"></span>
+    </div>
+  </section>
+  <section class="game" id="mural">
+    <h2>Geeko Pixel Mural <a href="../pixel-mural/host" target="_blank" rel="noopener">host screen</a></h2>
+    <p class="help">The closing game: everyone paints one mural together (not on the booth games page). Same switch:
+      while <strong>locked</strong> nobody can join. Player page:
+      <a href="../pixel-mural/" target="_blank" rel="noopener">/games/pixel-mural/</a></p>
+    <div class="actions">
+      <span class="status" id="mural-state" style="font-size:20px">…</span>
+      <button type="button" class="btn save" id="mural-toggle" disabled>…</button>
+      <span class="status" id="mural-status" role="status"></span>
+    </div>
+  </section>
   <div id="games"></div>
 
   <section class="game" id="pl">
@@ -367,6 +390,42 @@ a { color: var(--green); }
     } catch (e) { plStatus.textContent = 'Could not load: ' + e.message; plStatus.className = 'status err'; }
   }
   find.addEventListener('input', renderPlayers);
+
+  // --- Main hall games: open / lock --------------------------------------------
+  function liveLock(id, api) {
+    let open = null;
+    const st = document.getElementById(id + '-state'), btn = document.getElementById(id + '-toggle');
+    const msg = document.getElementById(id + '-status');
+    function render() {
+      st.textContent = open ? 'OPEN: players can join' : 'LOCKED: nobody can join';
+      st.className = 'status ' + (open ? 'ok' : 'err');
+      btn.textContent = open ? 'Lock game' : 'Open game';
+      btn.className = 'btn ' + (open ? 'danger' : 'save');
+      btn.disabled = false;
+    }
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        const r = await fetch(url(api), {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ open: !open })
+        });
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.error || 'HTTP ' + r.status);
+        open = body.open; render();
+        msg.textContent = (open ? 'Opened ' : 'Locked ') + new Date().toLocaleTimeString(); msg.className = 'status ok';
+      } catch (e) { msg.textContent = 'Not changed: ' + e.message; msg.className = 'status err'; btn.disabled = false; }
+    });
+    (async () => {
+      try {
+        const r = await fetch(url(api), { cache: 'no-store' });
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.error || 'HTTP ' + r.status);
+        open = body.open; render();
+      } catch (e) { msg.textContent = 'Could not load: ' + e.message; }
+    })();
+  }
+  liveLock('lgs', 'api/standing');
+  liveLock('mural', 'api/mural');
 
   loadScores();
   loadPlayers();

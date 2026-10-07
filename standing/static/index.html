@@ -1,0 +1,1134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d2731">
+<title>Last Geeko Standing</title>
+<link rel="icon" href="static/geeko.svg">
+<link rel="stylesheet" href="static/shared/base.css">
+<link rel="stylesheet" href="static/geeko.css">
+<script src="static/confetti.js"></script>
+<style>
+body { background: #0d2731; overscroll-behavior: none; }
+body::before { content: ""; position: fixed; inset: 0; z-index: -1; background: #0d2731 url(static/bg.png) center bottom / cover no-repeat; }
+/* 3, 2, 1, START! */
+.cd-num { font-size: 150px; font-weight: 900; line-height: 1; color: var(--cd, #fff); text-shadow: 0 8px 0 rgba(0,0,0,.25); }
+.cd-num.go { animation: cd-pop .9s cubic-bezier(.2,1.6,.4,1) both; }
+.cd-num.start { font-size: 76px; animation: cd-start 1.2s cubic-bezier(.2,1.6,.4,1) both; }
+@keyframes cd-pop { 0% { transform: scale(2.6) rotate(-8deg); opacity: 0; } 35% { opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes cd-start { 0% { transform: scale(.2) rotate(10deg); opacity: 0; } 40% { opacity: 1; } 100% { transform: scale(1) rotate(-3deg); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .cd-num.go, .cd-num.start { animation: none; } }
+.phone { max-width: 480px; min-height: 100dvh; margin: 0 auto; padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 14px; }
+.bar { display: flex; justify-content: space-between; align-items: center; font-size: 15px; color: var(--muted); gap: 8px; }
+.brand { font-weight: 800; color: var(--green); letter-spacing: .02em; }
+.screen { flex: 1; display: flex; flex-direction: column; gap: 14px; }
+.center { justify-content: center; align-items: center; text-align: center; }
+h1, h2 { margin: 0; line-height: 1.1; }
+.big { font-size: 34px; font-weight: 800; }
+.lead { font-size: 19px; line-height: 1.4; margin: 0; }
+.muted { color: var(--muted); font-size: 16px; margin: 0; line-height: 1.4; }
+label { font-size: 16px; font-weight: 700; }
+input { font: inherit; font-size: 22px; color: #fff; background: #0b2a35; border: 2px solid var(--teal); border-radius: 14px; padding: 0 16px; height: 60px; width: 100%; user-select: text; }
+input:focus { outline: none; border-color: var(--green); }
+.btn { height: 60px; border-radius: 30px; border: 0; background: var(--green); color: var(--ink); font-size: 21px; font-weight: 800; width: 100%; }
+.btn:disabled { opacity: .5; }
+.link { background: none; border: 0; color: var(--muted); font-size: 15px; text-decoration: underline; padding: 10px; }
+.alert { border-radius: 14px; padding: 14px 16px; background: #4a3410; color: #ffe2a8; font-size: 17px; line-height: 1.4; }
+.rules { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; font-size: 17px; color: #d5e6ec; text-align: left; }
+.timer { height: 8px; border-radius: 4px; background: #173f4f; overflow: hidden; flex: none; }
+.timer i { display: block; height: 100%; background: var(--teal); transform-origin: left; }
+.timer.low i { background: var(--warn); }
+.qhead { display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
+.qhead .secs { font-size: 26px; font-variant-numeric: tabular-nums; }
+.qtext { font-size: 25px; font-weight: 800; line-height: 1.3; margin: 0; flex: 1; }
+.answer { height: 112px; border-radius: 22px; font-size: 34px; font-weight: 800; border: 0; width: 100%; }
+.answer.yes { background: var(--green); color: var(--ink); }
+.answer.no { background: #3a2412; color: #fff; border: 3px solid #f2a65a; }
+.card { border-radius: 24px; padding: 26px 20px; display: flex; flex-direction: column; gap: 10px; align-items: center; text-align: center; width: 100%; }
+.card.good { background: #2c5a12; }
+.card.bad { background: #4a1e10; }
+.card.gold { background: #4d3b10; }
+.card.plain { background: #173f4f; }
+.card h2 { font-size: 34px; }
+.pts { font-size: 44px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pill { display: inline-block; padding: 6px 14px; border-radius: 999px; font-weight: 800; font-size: 15px; background: var(--teal); color: var(--ink); }
+.pill.game { background: #c9a24a; }
+.standing { border-radius: 14px; padding: 12px 14px; background: #173f4f; font-size: 17px; text-align: center; }
+.standing.safe { background: #24470f; }
+.standing.danger { background: #4a3410; }
+.walkbox { height: 70px; width: 100%; max-width: 320px; overflow: hidden; }
+/* coloured Geeko from the logo as a mask */
+.gk { display: block; -webkit-mask: url(static/geeko.svg) center / contain no-repeat; mask: url(static/geeko.svg) center / contain no-repeat; }
+/* Color Rush */
+.word { font-size: 64px; font-weight: 900; letter-spacing: .04em; text-align: center; margin: 8px 0; min-height: 80px; }
+.swatches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.swatches.five { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.sw { height: 104px; border-radius: 20px; border: 2px solid #2e6a7e; background: #0b2a35; padding: 14px; }
+.sw .gk { width: 100%; height: 100%; }
+.score-row { display: flex; justify-content: space-between; font-size: 18px; font-weight: 700; }
+.shake { animation: shake .35s; }
+@keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+/* Reflex */
+.pad { flex: 1; color: #fff; font: inherit; border-radius: 26px; background: #0b2a35; border: 3px solid #2e6a7e; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; touch-action: none; }
+.pad.go { background: #24470f; border-color: var(--green); }
+.pad.early { background: #4a1e10; border-color: #f2a65a; }
+.pad .gk { width: min(64vw, 260px); height: min(42vw, 170px); flex: none; }
+.pad .msg { font-size: 26px; font-weight: 800; }
+/* Reflex: blinking Geeko in an open arena */
+.arena { flex: 1; position: relative; border-radius: 22px; background: #0b2a35; border: 2px solid #2e6a7e; overflow: hidden; touch-action: none; min-height: 340px; transition: opacity .2s; }
+.arena.frozen { opacity: .35; }
+.target { position: absolute; transform: translate(-50%, -50%); padding: 7%; aspect-ratio: 66 / 43; box-sizing: content-box; }
+.target .gk { width: 100%; height: 100%; animation: gk-appear .12s ease-out, gk-blink .34s ease-in-out .12s infinite; pointer-events: none; }
+.target.fake .gk { transform: scaleX(-1); }
+.fx { position: absolute; transform: translate(-50%, -50%); font-weight: 800; font-size: 24px; pointer-events: none; animation: fx-rise .7s ease-out forwards; }
+@keyframes gk-appear { from { transform: scale(.2); } to { transform: scale(1); } }
+@keyframes gk-blink { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+@keyframes fx-rise { from { opacity: 1; margin-top: 0; } to { opacity: 0; margin-top: -50px; } }
+/* Bug Squash */
+.holes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; flex: 1; align-content: center; }
+.hole { aspect-ratio: 1; border-radius: 22px; border: 2px solid #2e6a7e; background: #0b2a35; padding: 14%; display: flex; align-items: center; justify-content: center; }
+.hole > * { width: 100%; height: 100%; animation: popup .12s ease-out; }
+.hole.splat { background: #2c5a12; border-color: var(--green); }
+.hole.ouch { background: #4a1e10; border-color: #f2a65a; }
+@keyframes popup { from { transform: scale(.3); } to { transform: scale(1); } }
+/* Geeko Simon */
+.simon { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; flex: 1; align-content: center; }
+.sbtn { aspect-ratio: 1; border-radius: 24px; border: 3px solid #2e6a7e; background: #0b2a35; padding: 16%; }
+.sbtn .gk { width: 100%; height: 100%; opacity: .28; transition: opacity .08s, transform .08s; }
+.sbtn.lit { border-color: #fff; }
+.sbtn.lit .gk { opacity: 1; transform: scale(1.1); }
+/* Geeko Dash */
+.dash { flex: 1; border-radius: 26px; background: #0b2a35; border: 3px solid #2e6a7e; display: flex; align-items: center; justify-content: center; touch-action: none; min-height: 260px; }
+.dgk { display: block; width: 62%; aspect-ratio: 66 / 43; transition: transform .08s; }
+.dgk .gk { width: 100%; height: 100%; animation: gk-lunge .55s ease-in-out infinite; }
+@keyframes gk-lunge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(9%); } }
+.dpad { display: grid; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(2, 56px); gap: 8px; justify-content: center; }
+.dpad button { border-radius: 14px; border: 2px solid #2e6a7e; background: #173f4f; color: #fff; font-size: 26px; font-weight: 800; }
+/* Geeko Sort */
+.sortbox { flex: 1; position: relative; border-radius: 22px; background: #0b2a35; border: 2px solid #2e6a7e; overflow: hidden; touch-action: none; min-height: 340px; }
+.jars { position: absolute; left: 0; right: 0; bottom: 0; height: 32%; display: grid; gap: 6px; padding: 0 6px 6px; }
+.jar { position: relative; border: 3px solid rgba(255,255,255,.25); border-top: 0; border-radius: 6px 6px 18px 18px; background: rgba(255,255,255,.05); color: #fff; font: inherit; font-size: 22px; font-weight: 800; display: flex; align-items: flex-end; justify-content: center; padding: 0 0 8px; }
+.jar .lid { position: absolute; top: 0; left: -3px; right: -3px; height: 14px; border-radius: 6px; }
+.jar.ok { background: rgba(115,186,37,.3); }
+.jar.no { background: rgba(229,72,77,.35); }
+.piece { position: absolute; touch-action: none; transition: left .25s ease-out, top .25s ease-out, transform .15s; z-index: 2; padding: 4px; border-radius: 12px; }
+.piece .gk { width: 100%; height: 100%; pointer-events: none; }
+.piece.drag { transition: none; z-index: 5; transform: scale(1.18); filter: drop-shadow(0 6px 8px rgba(0,0,0,.55)); }
+.piece.sel { background: rgba(255,255,255,.18); outline: 3px solid #fff; }
+/* Odd Geeko Out */
+.grid { display: grid; gap: 8px; flex: 1; align-content: center; }
+.cellb { aspect-ratio: 1; border-radius: 12px; border: 0; background: #173f4f; padding: 8%; }
+.cellb .gk { width: 100%; height: 100%; }
+.frozen { opacity: .35; pointer-events: none; }
+</style>
+</head>
+<body>
+<main class="phone">
+  <div class="bar"><span class="brand">LAST GEEKO STANDING</span><span id="top"></span></div>
+
+  <section class="screen" id="s-join" hidden>
+    <img class="gk-bob" src="static/geeko.svg" alt="" width="120" height="78" style="align-self:center;margin-top:12px">
+    <h1 class="big" style="text-align:center">Last Geeko Standing</h1>
+    <ul class="rules">
+      <li>5 rounds: true/false questions and mini games.</li>
+      <li>Fast and right = more points.</li>
+      <li>After each round only the best go through.</li>
+      <li>The last 5 Geeko win a prize.</li>
+    </ul>
+    <div class="alert" id="join-alert" role="alert" hidden></div>
+    <form id="join-form" style="display:flex;flex-direction:column;gap:10px;margin-top:auto">
+      <label for="name">Your name</label>
+      <input id="name" maxlength="20" autocomplete="nickname" autocapitalize="words" placeholder="e.g. Rina" required>
+      <button class="btn" id="join-btn" type="submit">Join</button>
+    </form>
+  </section>
+
+  <section class="screen center" id="s-lobby" hidden>
+    <div class="walkbox"><img class="gk-walk" src="static/geeko.svg" alt="" width="84" height="54" style="display:block;margin-top:10px"></div>
+    <h1 class="big" style="color:var(--green)">You're in!</h1>
+    <p class="lead">Playing as <strong id="lobby-name"></strong></p>
+    <p class="muted">Keep this page open. The game starts on the big screen.</p>
+    <p class="muted" id="lobby-count"></p>
+  </section>
+
+  <!-- 3, 2, 1, START! before a round -->
+  <section class="screen center" id="s-count" hidden>
+    <span class="pill" id="cd-pill"></span>
+    <h1 class="big" id="cd-title" style="margin:0"></h1>
+    <div style="height:190px;display:flex;align-items:center"><div class="cd-num" id="cd-num"></div></div>
+    <img class="gk-jump" src="static/geeko.svg" alt="" width="96" height="62">
+    <p class="muted">Get ready!</p>
+  </section>
+
+  <!-- Mini game intro -->
+  <section class="screen center" id="s-intro" hidden>
+    <span class="pill game" id="intro-pill"></span>
+    <h1 class="big" id="intro-title"></h1>
+    <div id="intro-demo" style="display:flex;gap:10px;justify-content:center"></div>
+    <p class="lead" id="intro-rule"></p>
+    <p class="muted">Starts in <strong id="intro-secs"></strong></p>
+  </section>
+
+  <!-- Question -->
+  <section class="screen" id="s-question" hidden>
+    <div class="qhead"><span class="pill" id="q-pill"></span><span class="secs" id="q-secs"></span></div>
+    <div class="timer" id="q-timer"><i></i></div>
+    <p class="qtext" id="q-text"></p>
+    <button class="answer yes" id="btn-true" type="button">TRUE</button>
+    <button class="answer no" id="btn-false" type="button">FALSE</button>
+  </section>
+
+  <!-- Color Rush -->
+  <section class="screen" id="s-color" hidden>
+    <div class="qhead"><span class="pill game">Color Rush</span><span class="secs" id="c-secs"></span></div>
+    <div class="timer" id="c-timer"><i></i></div>
+    <p class="muted" style="text-align:center">Tap the <strong>color</strong> of the word</p>
+    <div class="word" id="c-word"></div>
+    <div class="swatches" id="c-swatches"></div>
+    <div class="score-row"><span style="color:var(--green-hi)">✓ <span id="c-right">0</span></span><span style="color:#f2a65a">✗ <span id="c-wrong">0</span></span></div>
+  </section>
+
+  <!-- Reflex -->
+  <section class="screen" id="s-reflex" hidden>
+    <div class="qhead"><span class="pill game">Reflex · <span id="r-hits">0</span> caught</span><span class="secs" id="r-secs"></span></div>
+    <div class="timer" id="r-timer"><i></i></div>
+    <div class="arena" id="r-arena"></div>
+    <div class="score-row"><span style="color:var(--green-hi)">✓ <span id="r-right">0</span></span><span class="muted" id="r-avg"></span><span style="color:#f2a65a">✗ <span id="r-wrong">0</span></span></div>
+  </section>
+
+  <!-- Bug Squash -->
+  <section class="screen" id="s-bug" hidden>
+    <div class="qhead"><span class="pill game">Bug Squash · <span id="b-hits">0</span> squashed</span><span class="secs" id="b-secs"></span></div>
+    <div class="timer" id="b-timer"><i></i></div>
+    <div class="holes" id="b-holes"></div>
+    <p class="muted" style="text-align:center">Tap the bugs. Hitting a Geeko costs points!</p>
+  </section>
+
+  <!-- Geeko Simon -->
+  <section class="screen" id="s-simon" hidden>
+    <div class="qhead"><span class="pill game">Geeko Simon · best <span id="sm-level">0</span></span><span class="secs" id="sm-secs"></span></div>
+    <div class="timer" id="sm-timer"><i></i></div>
+    <p class="lead" id="sm-label" style="text-align:center;font-weight:800">Watch…</p>
+    <div class="simon" id="sm-pad"></div>
+  </section>
+
+  <!-- Geeko Dash -->
+  <section class="screen" id="s-dash" hidden>
+    <div class="qhead"><span class="pill game">Geeko Dash</span><span class="secs" id="d-secs"></span></div>
+    <div class="timer" id="d-timer"><i></i></div>
+    <p class="muted" style="text-align:center">Swipe the way the Geeko looks. <strong style="color:#ff6b5e">Red Geeko = opposite!</strong></p>
+    <div class="dash" id="d-area"><span class="dgk" id="d-geeko"><span class="gk" id="d-gk"></span></span></div>
+    <div class="dpad">
+      <span></span><button type="button" data-dir="0" aria-label="Up">↑</button><span></span>
+      <button type="button" data-dir="3" aria-label="Left">←</button><button type="button" data-dir="2" aria-label="Down">↓</button><button type="button" data-dir="1" aria-label="Right">→</button>
+    </div>
+    <div class="score-row"><span style="color:var(--green-hi)">✓ <span id="d-right">0</span></span><span style="color:#f2a65a">✗ <span id="d-wrong">0</span></span></div>
+  </section>
+
+  <!-- Geeko Sort -->
+  <section class="screen" id="s-sort" hidden>
+    <div class="qhead"><span class="pill game">Geeko Sort · <span id="st-count">0</span> sorted</span><span class="secs" id="st-secs"></span></div>
+    <div class="timer" id="st-timer"><i></i></div>
+    <div class="sortbox" id="st-box"><div class="jars" id="st-jars"></div></div>
+    <p class="muted" style="text-align:center">Drag each Geeko to its jar (or tap the Geeko, then the jar)</p>
+  </section>
+
+  <!-- Odd Geeko Out -->
+  <section class="screen" id="s-odd" hidden>
+    <div class="qhead"><span class="pill game">Odd Geeko Out · <span id="o-level">0</span> found</span><span class="secs" id="o-secs"></span></div>
+    <div class="timer" id="o-timer"><i></i></div>
+    <div class="grid" id="o-grid"></div>
+  </section>
+
+  <!-- Waiting after answering / playing -->
+  <section class="screen center" id="s-done" hidden>
+    <img class="gk-bob" src="static/geeko.svg" alt="" width="96" height="62">
+    <p class="muted" id="done-label">Locked in</p>
+    <h2 class="big" id="done-main"></h2>
+    <p class="lead" id="done-sub"></p>
+    <p class="muted">Look at the big screen</p>
+  </section>
+
+  <!-- Result of one item -->
+  <section class="screen center" id="s-reveal" hidden>
+    <div class="card" id="rv-card">
+      <img id="rv-geeko" src="static/geeko.svg" alt="" width="120" height="78">
+      <h2 id="rv-title"></h2>
+      <div class="pts" id="rv-points"></div>
+      <p class="lead" id="rv-sub"></p>
+    </div>
+    <div class="standing" id="rv-standing"></div>
+  </section>
+
+  <!-- End of round -->
+  <section class="screen center" id="s-cut" hidden>
+    <div class="card" id="cut-card">
+      <img id="cut-geeko" src="static/geeko.svg" alt="" width="130" height="84">
+      <h2 id="cut-title"></h2>
+      <p class="lead" id="cut-sub"></p>
+      <p class="muted" id="cut-note"></p>
+    </div>
+  </section>
+
+  <section class="screen center" id="s-watch" hidden>
+    <img class="gk-bob" src="static/geeko.svg" alt="" width="80" height="52" style="opacity:.7">
+    <p class="muted">Spectating</p>
+    <h2 class="big" style="font-size:64px;color:var(--green)" id="watch-alive"></h2>
+    <p class="lead">Geeko still standing</p>
+    <p class="muted" id="watch-sub"></p>
+  </section>
+
+  <section class="screen center" id="s-wait" hidden>
+    <img class="gk-bob" src="static/geeko.svg" alt="" width="96" height="62">
+    <h2 class="big" id="wait-title"></h2>
+    <p class="lead" id="wait-sub"></p>
+  </section>
+
+  <section class="screen center" id="s-win" hidden>
+    <div class="card gold">
+      <img class="gk-jump" src="static/geeko.svg" alt="" width="140" height="90">
+      <h2 style="color:#f5d27a">Winner!</h2>
+      <p class="lead" id="win-line"></p>
+      <p class="muted" style="color:#f2e3bd">Show this screen to the crew to collect your prize</p>
+    </div>
+  </section>
+
+  <p class="muted" id="conn" role="status" style="text-align:center" hidden>Reconnecting…</p>
+  <button class="link" id="leave" type="button" hidden>Leave game</button>
+</main>
+
+<script>
+(function () {
+  const KEY = 'lgs_session';
+  const $ = (id) => document.getElementById(id);
+  const screens = [...document.querySelectorAll('.screen')];
+  const COLORS = [
+    { n: 'GREEN', c: '#73ba25' }, { n: 'BLUE', c: '#21a4df' }, { n: 'YELLOW', c: '#f5c400' },
+    { n: 'PINK', c: '#ec6fb0' }, { n: 'PURPLE', c: '#a77be8' }
+  ];
+  let ws = null, session = load(), state = null, retry = 0, joining = false;
+  let itemKey = '', shownAt = 0, localEnd = 0, tickTimer = null, game = null;
+
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch (e) { return null; } }
+  function store(s) { session = s; try { s ? localStorage.setItem(KEY, JSON.stringify(s)) : localStorage.removeItem(KEY); } catch (e) {} }
+  function show(id) { screens.forEach((s) => { s.hidden = s.id !== id; }); }
+  function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+  function rng(seed) { // mulberry32: every phone gets the same puzzle from the same seed
+    let a = seed >>> 0;
+    return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  function geeko(color, extra) {
+    const s = document.createElement('span');
+    s.className = 'gk'; s.style.background = color;
+    if (extra) Object.assign(s.style, extra);
+    return s;
+  }
+  // Progress inside a mini game survives a page reload
+  function saveProgress(p) { try { sessionStorage.setItem('lgs_game', JSON.stringify(Object.assign({ key: itemKey }, p))); } catch (e) {} }
+  function loadProgress() { try { const p = JSON.parse(sessionStorage.getItem('lgs_game')); return p && p.key === itemKey ? p : null; } catch (e) { return null; } }
+
+  function connect() {
+    ws = new WebSocket(new URL('ws', location.href.replace(/^http/, 'ws')).href);
+    ws.onopen = () => {
+      retry = 0; $('conn').hidden = true;
+      // Only a session from THIS game is offered; the server decides whether it is still valid
+      send({ t: 'hello', token: session && session.token, game_id: session && session.game_id });
+    };
+    ws.onmessage = (e) => handle(JSON.parse(e.data));
+    ws.onclose = () => { $('conn').hidden = false; setTimeout(connect, Math.min(5000, 500 * 2 ** retry++)); };
+  }
+
+  const JOIN_ERRORS = {
+    started: 'This game has already started. Watch the big screen and join the next one!',
+    locked: 'The game is not open yet. Wait for the host to open it, then try again.',
+    name_taken: 'Someone already uses that name. Try another one.',
+    bad_name: 'Please type a name of 1 to 20 characters.'
+  };
+
+  function joinScreen(err, open) {
+    state = null; stopAll();
+    $('leave').hidden = true;
+    $('join-btn').disabled = false; joining = false;
+    const msg = err ? JOIN_ERRORS[err] : (open === false ? JOIN_ERRORS.locked : '');
+    $('join-alert').textContent = msg || '';
+    $('join-alert').hidden = !msg;
+    show('s-join');
+  }
+
+  function handle(m) {
+    if (m.t === 'need_join') { store(null); return joinScreen(m.phase !== 'lobby' ? 'started' : null, m.open); }
+    if (m.t === 'error') return joinScreen(m.code, m.open);
+    if (m.t === 'joined') { store({ token: m.token, game_id: m.game_id }); return; }
+    if (m.t === 'kicked' || m.t === 'left' || m.t === 'reset') { store(null); return joinScreen(null); }
+    if (m.t === 'state') return render(m);
+  }
+
+  function stopAll() { clearInterval(tickTimer); tickTimer = null; if (game && game.stop) game.stop(); game = null; }
+
+  function timerUI(p, limit, onEnd) {
+    const rem = Math.max(0, localEnd - performance.now());
+    $(p + '-secs').textContent = Math.ceil(rem / 1000);
+    const bar = $(p + '-timer');
+    bar.firstElementChild.style.transform = 'scaleX(' + Math.min(1, rem / limit) + ')';
+    bar.classList.toggle('low', rem < 3000);
+    if (rem <= 0) { clearInterval(tickTimer); tickTimer = null; if (onEnd) onEnd(); }
+  }
+  function runTimer(p, limit, onEnd) {
+    clearInterval(tickTimer);
+    timerUI(p, limit, onEnd);
+    tickTimer = setInterval(() => timerUI(p, limit, onEnd), 100);
+  }
+
+  function roundLabel(s) {
+    const r = s.round;
+    if (r.type === 'quiz') return (r.final ? 'Final' : 'Round ' + (r.index + 1)) + ' · Q' + (r.item + 1) + '/' + r.items;
+    return 'Round ' + (r.index + 1) + ' · Game ' + (r.item + 1) + '/' + r.items;
+  }
+  const PLACE = (n) => n + (n % 10 === 1 && n % 100 !== 11 ? 'st' : n % 10 === 2 && n % 100 !== 12 ? 'nd' : n % 10 === 3 && n % 100 !== 13 ? 'rd' : 'th');
+
+  function standingLine(s) {
+    const y = s.you, el = $('rv-standing');
+    if (!y.keep) { el.hidden = true; return; }
+    el.hidden = false;
+    const safe = y.rank <= y.keep;
+    el.className = 'standing ' + (safe ? 'safe' : 'danger');
+    el.textContent = 'Round score ' + y.score + ' · you are #' + y.rank + ' of ' + s.alive + ' · top ' + y.keep +
+      (s.round.final ? ' win' : ' go through');
+  }
+
+  function render(s) {
+    const prev = state;
+    state = s;
+    const y = s.you, out = y.out !== 0;
+    $('leave').hidden = s.phase === 'podium';
+    $('top').textContent = s.phase === 'lobby' ? s.total + ' joined' : s.round ? s.alive + ' left' : '';
+    const key = s.round ? s.round.index + ':' + s.round.item : '';
+    const newItem = key !== itemKey;
+
+    if (s.phase === 'lobby') {
+      stopAll();
+      $('lobby-name').textContent = y.name;
+      $('lobby-count').textContent = s.total + (s.total === 1 ? ' player' : ' players') + ' joined';
+      return show('s-lobby');
+    }
+    if (out && !['cut', 'final_wait', 'podium'].includes(s.phase)) { stopAll(); return watch(s); }
+
+    if (s.phase === 'countdown') {
+      if (prev && prev.phase === 'countdown' && !newItem) return;
+      stopAll();
+      itemKey = key;
+      const r = s.round;
+      $('cd-pill').textContent = r.final ? 'Final round' : 'Round ' + (r.index + 1) + ' of ' + r.count;
+      $('cd-pill').className = 'pill' + (r.type === 'games' ? ' game' : '');
+      $('cd-title').textContent = r.type === 'games' ? 'Mini games!' : 'Questions!';
+      localEnd = performance.now() + s.count_ms;
+      let step = -1;
+      const upd = () => {
+        const now = Math.min(3, Math.floor((s.count_total_ms - Math.max(0, localEnd - performance.now())) / 1000));
+        if (now === step || now < 0) return;
+        step = now;
+        const num = $('cd-num');
+        num.className = 'cd-num'; void num.offsetWidth;
+        num.style.setProperty('--cd', ['#21a4df', '#f5c400', '#f2a65a', '#73ba25'][step]);
+        num.textContent = step < 3 ? 3 - step : 'START!';
+        num.classList.add(step < 3 ? 'go' : 'start');
+        try { if (navigator.vibrate && (!navigator.userActivation || navigator.userActivation.hasBeenActive)) navigator.vibrate(step < 3 ? 40 : [60, 40, 120]); } catch (e) {}
+      };
+      show('s-count');
+      upd(); tickTimer = setInterval(upd, 50);
+      return;
+    }
+
+    if (s.phase === 'intro') {
+      stopAll();
+      itemKey = key;
+      localEnd = performance.now() + s.item.ends_in_ms;
+      $('intro-pill').textContent = roundLabel(s);
+      $('intro-title').textContent = s.item.title;
+      $('intro-rule').textContent = s.item.rule;
+      demo(s.item.game);
+      show('s-intro');
+      tickTimer = setInterval(() => { $('intro-secs').textContent = Math.max(0, Math.ceil((localEnd - performance.now()) / 1000)); }, 100);
+      $('intro-secs').textContent = Math.ceil(s.item.ends_in_ms / 1000);
+      return;
+    }
+    if (s.phase === 'play') {
+      if (y.done) { stopAll(); return doneScreen(s); }
+      if (newItem || !prev || prev.phase !== 'play') {
+        stopAll();
+        itemKey = key;
+        shownAt = performance.now();
+        localEnd = shownAt + s.item.ends_in_ms;
+        if (s.item.kind === 'question') return question(s);
+        return startGame(s);
+      }
+      return;
+    }
+    stopAll();
+    if (s.phase === 'reveal') return reveal(s);
+    if (s.phase === 'cut' || s.phase === 'final_wait') return cut(s);
+    if (s.phase === 'podium') return podium(s);
+  }
+
+  function question(s) {
+    $('q-pill').textContent = roundLabel(s);
+    $('q-text').textContent = s.item.text;
+    setAnswerButtons(true);
+    show('s-question');
+    runTimer('q', s.item.limit_ms, () => setAnswerButtons(false));
+  }
+  function setAnswerButtons(on) { $('btn-true').disabled = !on; $('btn-false').disabled = !on; }
+  function answer(choice) {
+    if (!state || state.phase !== 'play' || performance.now() > localEnd) return;
+    setAnswerButtons(false);
+    send({ t: 'submit', round: state.round.index, item: state.round.item, choice: choice, ms: Math.round(performance.now() - shownAt) });
+  }
+  $('btn-true').addEventListener('click', () => answer(true));
+  $('btn-false').addEventListener('click', () => answer(false));
+
+  function doneScreen(s) {
+    const r = s.you.result || {};
+    if (s.item.kind === 'question') {
+      $('done-label').textContent = 'Locked in';
+      $('done-main').textContent = r.choice ? 'TRUE' : 'FALSE';
+      $('done-main').style.color = r.choice ? 'var(--green)' : '#f2a65a';
+      $('done-sub').textContent = r.ms ? 'in ' + (r.ms / 1000).toFixed(2) + ' s' : '';
+    } else {
+      $('done-label').textContent = 'Done!';
+      $('done-main').textContent = r.label || '';
+      $('done-main').style.color = 'var(--green)';
+      $('done-sub').textContent = 'Waiting for the others';
+    }
+    show('s-done');
+  }
+
+  function reveal(s) {
+    const y = s.you, l = y.last || {}, card = $('rv-card');
+    if (s.item.kind === 'question') {
+      card.className = 'card ' + (l.correct ? 'good' : 'bad');
+      $('rv-geeko').className = l.correct ? 'gk-dance' : 'gk-flip';
+      $('rv-title').textContent = l.correct ? 'Correct!' : l.answered ? 'Wrong' : 'Too late';
+      $('rv-sub').textContent = 'The answer was ' + (s.item.answer ? 'TRUE' : 'FALSE');
+    } else {
+      card.className = 'card ' + (l.place && l.place <= Math.ceil(l.of / 3) ? 'good' : 'plain');
+      $('rv-geeko').className = l.place && l.place <= Math.ceil(l.of / 3) ? 'gk-dance' : 'gk-bob';
+      $('rv-title').textContent = l.place ? PLACE(l.place) + ' of ' + l.of : 'Missed it';
+      $('rv-sub').textContent = l.label || '';
+    }
+    $('rv-points').textContent = '+' + (l.points || 0);
+    standingLine(s);
+    show('s-reveal');
+  }
+
+  function cut(s) {
+    const y = s.you, r = s.round, card = $('cut-card');
+    if (s.phase === 'final_wait' && !y.out) {
+      $('wait-title').textContent = 'You made it to the top 5!';
+      $('wait-sub').textContent = 'Winners are announced on the big screen…';
+      return show('s-wait');
+    }
+    if (!y.out) {
+      card.className = 'card good';
+      $('cut-geeko').className = 'gk-dance';
+      $('cut-title').textContent = "You're through!";
+      $('cut-sub').textContent = 'You finished round ' + (r.index + 1) + ' at #' + y.rank + '.';
+      $('cut-note').textContent = 'Next: ' + (r.index + 2 === r.count ? 'the final' : 'round ' + (r.index + 2)) + '. Get ready!';
+    } else if (y.out === r.index + 1) {
+      card.className = 'card bad';
+      $('cut-geeko').className = 'gk-flip';
+      $('cut-title').textContent = y.reason === 'left' ? 'You left' : "You're out";
+      $('cut-sub').textContent = y.place ? 'You finished #' + y.place + ' in round ' + y.out + '.' : '';
+      $('cut-note').textContent = r.final ? 'So close! Thanks for playing.' : 'Stay and cheer: the game goes on on the big screen.';
+    } else {
+      return watch(s);
+    }
+    show('s-cut');
+  }
+
+  let celebrated = '';
+  function celebrate(what, fn) {
+    if (celebrated === state.game_id + what) return;
+    celebrated = state.game_id + what;
+    fn();
+  }
+  function podium(s) {
+    const y = s.you;
+    if (y.win_place && s.podium.some((w) => w.place === y.win_place)) {
+      $('win-line').textContent = "You're #" + y.win_place + ' of the last 5 Geeko!';
+      celebrate(':me', () => { Confetti.cannons(110); Confetti.rain(5000); });
+      return show('s-win');
+    }
+    if (s.podium.length === s.podium_size) celebrate(':all', () => Confetti.rain(3500));
+    if (y.win_place) { $('wait-title').textContent = 'Drumroll…'; $('wait-sub').textContent = 'Your name is coming up!'; return show('s-wait'); }
+    $('wait-title').textContent = 'And the winners are…';
+    $('wait-sub').textContent = y.place ? 'You finished #' + y.place + '. Thanks for playing!' : 'Look at the big screen';
+    show('s-wait');
+  }
+
+  function watch(s) {
+    $('watch-alive').textContent = s.alive;
+    $('watch-sub').textContent = s.you.out ? 'You went out in round ' + s.you.out + (s.you.place ? ' (#' + s.you.place + ')' : '') + '. Cheer them on!' : '';
+    show('s-watch');
+  }
+
+  // ---------------------------------------------------------------- mini games
+  function finishGame(result) {
+    if (!state || state.phase !== 'play') return;
+    send(Object.assign({ t: 'submit', round: state.round.index, item: state.round.item }, result));
+  }
+
+  function demo(gameName) {
+    const box = $('intro-demo');
+    box.textContent = '';
+    if (gameName === 'color') {
+      const w = document.createElement('span');
+      w.textContent = 'BLUE'; w.style.cssText = 'font-size:40px;font-weight:900;color:#73ba25';
+      box.append(w, document.createTextNode(' → '), geeko('#73ba25', { width: '70px', height: '46px' }));
+    } else if (gameName === 'reflex') {
+      const no = document.createElement('span');
+      no.textContent = '✗'; no.style.cssText = 'color:#ff6b5e;font-size:40px;font-weight:900';
+      box.append(geeko('#73ba25', { width: '90px', height: '58px', animation: 'gk-blink .34s ease-in-out infinite' }), document.createTextNode(' · '),
+        geeko('#e5484d', { width: '60px', height: '40px', transform: 'scaleX(-1)' }), no);
+    } else if (gameName === 'bug') {
+      box.append(bugIcon('90px'), document.createTextNode(' not '), geeko('#73ba25', { width: '60px', height: '40px', opacity: '.5' }));
+    } else if (gameName === 'simon') {
+      COLORS.slice(0, 4).forEach((c) => box.append(geeko(c.c, { width: '56px', height: '36px' })));
+    } else if (gameName === 'dash') {
+      box.append(geeko('#73ba25', { width: '64px', height: '42px' }), document.createTextNode(' = → · '),
+        geeko('#ff6b5e', { width: '64px', height: '42px' }), document.createTextNode(' = ←'));
+    } else if (gameName === 'sort') {
+      const jar = document.createElement('span');
+      jar.style.cssText = 'display:block;width:56px;height:62px;border:3px solid rgba(255,255,255,.3);border-top:8px solid #21a4df;border-radius:6px 6px 16px 16px';
+      box.append(geeko('#21a4df', { width: '70px', height: '46px' }), document.createTextNode(' → '), jar);
+    } else {
+      ['', '', 'scaleX(-1)', ''].forEach((tf) => box.append(geeko('#73ba25', { width: '56px', height: '36px', transform: tf })));
+    }
+  }
+
+  function startGame(s) {
+    const it = s.item;
+    if (it.game === 'color') game = colorRush(it);
+    else if (it.game === 'reflex') game = reflex(it);
+    else if (it.game === 'bug') game = bugSquash(it);
+    else if (it.game === 'simon') game = simonSays(it);
+    else if (it.game === 'dash') game = geekoDash(it);
+    else if (it.game === 'sort') game = geekoSort(it);
+    else game = oddOut(it);
+  }
+
+  const BUG_SVG = '<svg viewBox="0 0 64 64" aria-hidden="true"><g stroke="#f2c3b8" stroke-width="4" stroke-linecap="round">' +
+    '<path d="M20 26 8 18M44 26l12-8M18 37H6M46 37h12M20 48 8 56M44 48l12 8M27 10l-4-6M37 10l4-6"/></g>' +
+    '<ellipse cx="32" cy="38" rx="16" ry="20" fill="#e5484d"/><circle cx="32" cy="16" r="9" fill="#8a1c12"/>' +
+    '<path d="M32 19v38" stroke="#8a1c12" stroke-width="3"/><circle cx="25" cy="33" r="3.5" fill="#8a1c12"/>' +
+    '<circle cx="39" cy="44" r="3.5" fill="#8a1c12"/></svg>';
+  function bugIcon(size) {
+    const s = document.createElement('span');
+    s.style.cssText = 'display:block;width:' + (size || '100%') + ';height:' + (size || '100%');
+    s.innerHTML = BUG_SVG;
+    s.firstChild.style.cssText = 'width:100%;height:100%;display:block';
+    return s;
+  }
+
+
+  function bugSquash(it) {
+    const r = rng(it.seed), dur = it.limit_ms;
+    // Everyone gets the same pop-ups at the same moments; faster towards the end
+    const pops = [];
+    for (let t = 500; t < dur - 400;) {
+      const f = t / dur;
+      pops.push({ at: t, hole: Math.floor(r() * 9), geeko: r() < 0.25, life: 1050 - 450 * f, used: false });
+      t += 560 - 240 * f + r() * 180;
+    }
+    const p = loadProgress() || { hits: 0, misses: 0 };
+    const startAt = localEnd - dur;  // same clock after a reload
+    const holes = [], showing = new Array(9).fill(null);
+    let ended = false;
+    const box = $('b-holes');
+    box.textContent = '';
+    for (let i = 0; i < 9; i++) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'hole'; b.setAttribute('aria-label', 'Hole ' + (i + 1));
+      b.addEventListener('pointerdown', (e) => { e.preventDefault(); tap(i); });
+      box.appendChild(b); holes.push(b);
+    }
+    function render() {
+      const now = performance.now() - startAt;
+      for (let i = 0; i < 9; i++) {
+        const cur = showing[i];
+        if (cur && (cur.used || now > cur.at + cur.life)) { showing[i] = null; holes[i].textContent = ''; }
+      }
+      for (const pop of pops) {
+        if (pop.used || pop.at > now || now > pop.at + pop.life || showing[pop.hole]) continue;
+        if (showing.some((s2) => s2 === pop)) continue;
+        showing[pop.hole] = pop;
+        holes[pop.hole].className = 'hole';
+        holes[pop.hole].textContent = '';
+        holes[pop.hole].appendChild(pop.geeko ? geeko('#73ba25') : bugIcon());
+      }
+      $('b-hits').textContent = p.hits;
+    }
+    function tap(i) {
+      const cur = showing[i];
+      if (ended || !cur || cur.used) return;
+      cur.used = true;
+      if (cur.geeko) p.misses++; else p.hits++;
+      holes[i].className = 'hole ' + (cur.geeko ? 'ouch' : 'splat');
+      setTimeout(() => { holes[i].className = 'hole'; }, 250);
+      saveProgress(p);
+      render();
+    }
+    const loop = setInterval(render, 40);
+    render();
+    show('s-bug');
+    runTimer('b', dur, () => { ended = true; clearInterval(loop); finishGame({ hits: p.hits, misses: p.misses }); });
+    return { stop() { ended = true; clearInterval(loop); } };
+  }
+
+  function simonSays(it) {
+    const r = rng(it.seed);
+    const seq = Array.from({ length: 25 }, () => Math.floor(r() * 4));
+    const cols = COLORS.slice(0, 4);
+    const p = loadProgress() || { level: 0, ms: 0 };
+    let len = Math.max(3, p.level + 1), phase = 'watch', pos = 0, timers = [], ended = false;
+    const pad = $('sm-pad'), btns = [];
+    pad.textContent = '';
+    cols.forEach((c, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'sbtn'; b.setAttribute('aria-label', c.n.toLowerCase() + ' Geeko');
+      b.appendChild(geeko(c.c));
+      b.addEventListener('pointerdown', (e) => { e.preventDefault(); tap(i); });
+      pad.appendChild(b); btns.push(b);
+    });
+    function flash(i, ms) {
+      btns[i].classList.add('lit');
+      timers.push(setTimeout(() => btns[i].classList.remove('lit'), ms));
+    }
+    function clear() { timers.forEach(clearTimeout); timers = []; btns.forEach((b) => b.classList.remove('lit')); }
+    function playSeq() {
+      if (ended) return;
+      clear();
+      phase = 'watch'; pos = 0;
+      $('sm-label').textContent = 'Watch… (' + len + ')';
+      $('sm-level').textContent = p.level;
+      const gap = Math.max(330, 560 - len * 25);
+      for (let k = 0; k < len; k++) timers.push(setTimeout(() => flash(seq[k], gap * 0.7), 400 + k * gap));
+      timers.push(setTimeout(() => { phase = 'input'; $('sm-label').textContent = 'Your turn!'; }, 400 + len * gap));
+    }
+    function tap(i) {
+      if (ended || phase !== 'input') return;
+      flash(i, 160);
+      if (i === seq[pos]) {
+        pos++;
+        if (pos === len) {
+          p.level = len; p.ms = Math.round(performance.now() - shownAt);
+          saveProgress(p);
+          len = Math.min(25, len + 1);
+          phase = 'pause';
+          $('sm-label').textContent = 'Nice! Next: ' + len;
+          timers.push(setTimeout(playSeq, 700));
+        }
+      } else {
+        phase = 'pause';
+        $('sm-label').textContent = 'Oops! Watch again';
+        pad.classList.remove('shake'); void pad.offsetWidth; pad.classList.add('shake');
+        timers.push(setTimeout(playSeq, 900));
+      }
+    }
+    show('s-simon');
+    playSeq();
+    runTimer('sm', it.limit_ms, () => { ended = true; clear(); finishGame({ level: p.level, ms: p.ms }); });
+    return { stop() { ended = true; clear(); } };
+  }
+
+  function geekoDash(it) {
+    const r = rng(it.seed);
+    const redShare = it.level === 2 ? 0.45 : 0.35;
+    const items = Array.from({ length: 200 }, () => ({ dir: Math.floor(r() * 4), red: r() < redShare }));
+    const p = loadProgress() || { idx: 0, correct: 0, wrong: 0 };
+    let lockedUntil = 0, ended = false, start = null;
+    const area = $('d-area');
+    function draw() {
+      const cur = items[p.idx % items.length];
+      // The Geeko looks right by default: up, right, down, left
+      $('d-geeko').style.transform = ['rotate(-90deg)', 'none', 'rotate(90deg)', 'scaleX(-1)'][cur.dir];
+      $('d-geeko').dataset.dir = cur.dir;
+      $('d-gk').style.background = cur.red ? '#ff6b5e' : '#73ba25';
+      $('d-right').textContent = p.correct; $('d-wrong').textContent = p.wrong;
+    }
+    function answer(d) {
+      if (ended || performance.now() < lockedUntil) return;
+      const cur = items[p.idx % items.length];
+      const want = cur.red ? (cur.dir + 2) % 4 : cur.dir;
+      if (d === want) p.correct++;
+      else { p.wrong++; lockedUntil = performance.now() + 400; area.classList.remove('shake'); void area.offsetWidth; area.classList.add('shake'); }
+      p.idx++;
+      saveProgress(p);
+      draw();
+    }
+    area.onpointerdown = (e) => { e.preventDefault(); start = { x: e.clientX, y: e.clientY }; };
+    area.onpointerup = (e) => {
+      if (!start) return;
+      const dx = e.clientX - start.x, dy = e.clientY - start.y;
+      start = null;
+      if (Math.hypot(dx, dy) < 30) return;
+      answer(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy > 0 ? 2 : 0));
+    };
+    document.querySelectorAll('.dpad button').forEach((b) => {
+      b.onpointerdown = (e) => { e.preventDefault(); answer(Number(b.dataset.dir)); };
+    });
+    draw();
+    show('s-dash');
+    runTimer('d', it.limit_ms, () => { ended = true; finishGame({ correct: p.correct, wrong: p.wrong }); });
+    return { stop() { ended = true; } };
+  }
+
+  function colorRush(it) {
+    const n = it.level === 2 ? 5 : 4, r = rng(it.seed), cols = COLORS.slice(0, n);
+    const items = [];
+    for (let k = 0; k < 200; k++) {
+      const word = Math.floor(r() * n);
+      let ink = Math.floor(r() * n);
+      if (r() < 0.75) while (ink === word) ink = Math.floor(r() * n);
+      const order = cols.map((_, i) => i);
+      if (it.level === 2) for (let i = n - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
+      items.push({ word, ink, order });
+    }
+    const p = loadProgress() || { idx: 0, correct: 0, wrong: 0 };
+    let lockedUntil = 0, ended = false;
+    const box = $('c-swatches');
+    box.className = 'swatches' + (n === 5 ? ' five' : '');
+    function draw() {
+      const cur = items[p.idx % items.length];
+      $('c-word').textContent = cols[cur.word].n;
+      $('c-word').style.color = cols[cur.ink].c;
+      $('c-right').textContent = p.correct; $('c-wrong').textContent = p.wrong;
+      box.textContent = '';
+      cur.order.forEach((ci) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'sw';
+        b.setAttribute('aria-label', cols[ci].n.toLowerCase() + ' Geeko');
+        b.appendChild(geeko(cols[ci].c));
+        b.addEventListener('pointerdown', (e) => { e.preventDefault(); tap(ci); });
+        box.appendChild(b);
+      });
+    }
+    function tap(ci) {
+      if (ended || performance.now() < lockedUntil) return;
+      const cur = items[p.idx % items.length];
+      if (ci === cur.ink) p.correct++;
+      else { p.wrong++; lockedUntil = performance.now() + 500; box.classList.remove('shake'); void box.offsetWidth; box.classList.add('shake'); }
+      p.idx++;
+      saveProgress(p);
+      draw();
+    }
+    draw();
+    show('s-color');
+    runTimer('c', it.limit_ms, () => { ended = true; finishGame({ correct: p.correct, wrong: p.wrong }); });
+    return { stop() { ended = true; } };
+  }
+
+  function reflex(it) {
+    // Everyone gets the same Geeko at the same places and moments; faster and smaller towards the end
+    const r = rng(it.seed), dur = it.limit_ms, L2 = it.level === 2, evs = [];
+    const clamp = (v) => Math.max(0.12, Math.min(0.88, v));
+    for (let t = 700; t < dur - 500;) {
+      const f = t / dur;
+      const life = (1050 - 500 * f) * (L2 ? 0.85 : 1);
+      const fake = r() < (L2 ? 0.35 : 0.28) && evs.length > 1;
+      const move = f > (L2 ? 0.3 : 0.5) && r() < (L2 ? 0.65 : 0.5);
+      const x = 0.15 + r() * 0.7, y = 0.12 + r() * 0.76, ang = r() * Math.PI * 2;
+      evs.push({ at: t, life, fake, x, y, x2: move ? clamp(x + Math.cos(ang) * 0.3) : x, y2: move ? clamp(y + Math.sin(ang) * 0.3) : y,
+        size: 30 - 10 * f - (L2 ? 3 : 0), color: fake ? (r() < 0.5 ? '#e5484d' : '#f2a65a') : '#73ba25' });
+      t += life + 250 + r() * 450;
+    }
+    const p = loadProgress() || { hits: 0, wrong: 0, sum: 0, used: [] };
+    const startAt = localEnd - dur;  // same clock after a reload
+    const arena = $('r-arena');
+    let cur = -1, el = null, seenAt = 0, frozenUntil = 0, ended = false, loop = null;
+    arena.textContent = '';
+    arena.classList.remove('frozen');
+    function avg() { return p.hits ? Math.round(p.sum / p.hits) : 0; }
+    function score() {
+      $('r-hits').textContent = p.hits; $('r-right').textContent = p.hits; $('r-wrong').textContent = p.wrong;
+      $('r-avg').textContent = p.hits ? avg() + ' ms avg' : '';
+    }
+    function hide() { if (el) el.remove(); el = null; }
+    function fx(text, color, x, y) {
+      const f = document.createElement('div');
+      f.className = 'fx'; f.textContent = text; f.style.color = color;
+      f.style.left = x * 100 + '%'; f.style.top = y * 100 + '%';
+      arena.appendChild(f);
+      setTimeout(() => f.remove(), 700);
+    }
+    function where(ev, now) {
+      const k = Math.min(1, Math.max(0, (now - ev.at) / ev.life));
+      return [ev.x + (ev.x2 - ev.x) * k, ev.y + (ev.y2 - ev.y) * k];
+    }
+    function showEv(k, now) {
+      hide();
+      cur = k;
+      const ev = evs[k], [x, y] = where(ev, now), left = ev.at + ev.life - now;
+      el = document.createElement('div');
+      el.className = 'target' + (ev.fake ? ' fake' : '');
+      el.style.width = ev.size + '%';
+      el.style.left = x * 100 + '%'; el.style.top = y * 100 + '%';
+      el.appendChild(geeko(ev.color));
+      arena.appendChild(el);
+      seenAt = performance.now();
+      if (ev.x2 !== ev.x || ev.y2 !== ev.y) {
+        void el.offsetWidth;
+        el.style.transition = 'left ' + left + 'ms linear, top ' + left + 'ms linear';
+        el.style.left = ev.x2 * 100 + '%'; el.style.top = ev.y2 * 100 + '%';
+      }
+    }
+    function step() {
+      if (ended) return;
+      const now = performance.now() - startAt;
+      if (el && now >= evs[cur].at + evs[cur].life) hide();
+      if (!el) {
+        const k = evs.findIndex((ev, i) => i > cur && now >= ev.at && now < ev.at + ev.life - 120);
+        if (k >= 0 && !p.used.includes(k)) showEv(k, now);
+        else if (k >= 0) cur = k;
+      }
+    }
+    arena.onpointerdown = (e) => {
+      e.preventDefault();
+      if (ended || performance.now() < frozenUntil) return;
+      const br = arena.getBoundingClientRect();
+      const x = (e.clientX - br.left) / br.width, y = (e.clientY - br.top) / br.height;
+      const hit = el && e.target.closest('.target') === el;
+      if (hit && !evs[cur].fake) {
+        const ms = Math.round(performance.now() - seenAt);
+        p.hits++; p.sum += ms; p.used.push(cur);
+        fx(ms + ' ms', '#9be15d', x, y);
+        hide();
+      } else {
+        p.wrong++;
+        if (hit) {  // a trap Geeko: freeze for a second
+          p.used.push(cur);
+          hide();
+          fx('Trap!', '#ff6b5e', x, y);
+          frozenUntil = performance.now() + 1000;
+          arena.classList.add('frozen', 'shake');
+          setTimeout(() => arena.classList.remove('frozen', 'shake'), 1000);
+        } else {
+          fx('✗', '#f2a65a', x, y);
+        }
+      }
+      saveProgress(p);
+      score();
+    };
+    function done() {
+      if (ended) return;
+      ended = true; clearInterval(loop); hide();
+      finishGame({ hits: p.hits, wrong: p.wrong, avg: avg() });
+    }
+    score();
+    show('s-reflex');
+    loop = setInterval(step, 30);
+    step();
+    runTimer('r', it.limit_ms, done);
+    return { stop() { ended = true; clearInterval(loop); hide(); } };
+  }
+
+
+  function geekoSort(it) {
+    const n = it.level === 2 ? 5 : 4, cols = COLORS.slice(0, n);
+    const [gx, gy] = it.level === 2 ? [4, 2] : [3, 2], per = gx * gy;
+    const box = $('st-box'), jarsEl = $('st-jars');
+    const p = loadProgress() || { b: 0, done: [], sorted: 0, wrong: 0, ms: 0, jars: new Array(n).fill(0) };
+    let pieces = [], els = [], sel = -1, drag = null, lockedUntil = 0, ended = false;
+    box.querySelectorAll('.piece').forEach((e) => e.remove());  // left over from an earlier Sort
+    function batch(b) {
+      // Same Geekos in the same places for everyone: derive from the seed and the batch number
+      const rr = rng((it.seed ^ ((b + 1) * 2654435761)) >>> 0);
+      const cells = [...Array(per).keys()];
+      for (let i = per - 1; i > 0; i--) { const j = Math.floor(rr() * (i + 1)); [cells[i], cells[j]] = [cells[j], cells[i]]; }
+      return cells.map((c) => ({ color: Math.floor(rr() * n), x: (c % gx + rr() * 0.5) / gx, y: (Math.floor(c / gx) + rr() * 0.5) / gy }));
+    }
+    const W = it.level === 2 ? 22 : 27;  // piece width in % of the box
+    function home(k) {
+      const e = els[k];
+      e.style.left = (pieces[k].x * (100 - W)) + '%';
+      e.style.top = (pieces[k].y * 52) + '%';
+    }
+    function drawJars() {
+      jarsEl.style.gridTemplateColumns = 'repeat(' + n + ', minmax(0, 1fr))';
+      jarsEl.textContent = '';
+      cols.forEach((c, j) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'jar';
+        b.setAttribute('aria-label', c.n.toLowerCase() + ' jar');
+        b.style.borderColor = c.c + '99';
+        const lid = document.createElement('span'); lid.className = 'lid'; lid.style.background = c.c;
+        b.append(lid, document.createTextNode(p.jars[j]));
+        b.addEventListener('pointerdown', (e) => { e.preventDefault(); if (sel >= 0) drop(sel, j); });
+        jarsEl.appendChild(b);
+      });
+    }
+    function draw() {
+      pieces = batch(p.b);
+      els.forEach((e) => e && e.remove());
+      els = []; sel = -1;
+      pieces.forEach((pc, k) => {
+        if (p.done.includes(k)) { els.push(null); return; }
+        const e = document.createElement('div');
+        e.className = 'piece';
+        e.style.width = W + '%'; e.style.aspectRatio = '66 / 43';
+        e.appendChild(geeko(cols[pc.color].c));
+        els.push(e);
+        home(k);
+        attach(e, k);
+        box.appendChild(e);
+      });
+      $('st-count').textContent = p.sorted;
+    }
+    function select(k) {
+      if (sel >= 0 && els[sel]) els[sel].classList.remove('sel');
+      sel = sel === k ? -1 : k;
+      if (sel >= 0) els[sel].classList.add('sel');
+    }
+    function flash(j, cls) {
+      const jar = jarsEl.children[j];
+      jar.classList.remove('ok', 'no', 'shake'); void jar.offsetWidth;
+      jar.classList.add(cls);
+      if (cls === 'no') jar.classList.add('shake');
+      setTimeout(() => jar.classList.remove(cls, 'shake'), 400);
+    }
+    function drop(k, j) {
+      if (ended || performance.now() < lockedUntil || !els[k]) return;
+      if (els[k].classList.contains('sel')) els[k].classList.remove('sel');
+      sel = -1;
+      if (pieces[k].color === j) {
+        p.sorted++; p.jars[j]++; p.done.push(k);
+        p.ms = Math.round(performance.now() - shownAt);
+        els[k].remove(); els[k] = null;
+        flash(j, 'ok');
+        jarsEl.children[j].lastChild.textContent = p.jars[j];
+        $('st-count').textContent = p.sorted;
+        if (p.done.length === per) { p.b++; p.done = []; draw(); }
+      } else {
+        p.wrong++;
+        lockedUntil = performance.now() + 400;
+        flash(j, 'no');
+        home(k);
+      }
+      saveProgress(p);
+    }
+    function jarAt(x, y) {
+      const r = jarsEl.getBoundingClientRect();
+      if (y < r.top - 16 || x < r.left || x > r.right) return -1;
+      return Math.min(n - 1, Math.floor((x - r.left) / r.width * n));
+    }
+    function attach(e, k) {
+      e.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault();
+        if (ended || drag) return;
+        drag = { k, id: ev.pointerId, x0: ev.clientX, y0: ev.clientY, moved: false, lift: ev.pointerType === 'touch' ? 40 : 0 };
+        try { e.setPointerCapture(ev.pointerId); } catch (err) {}
+      });
+      e.addEventListener('pointermove', (ev) => {
+        if (!drag || drag.k !== k || drag.id !== ev.pointerId) return;
+        if (!drag.moved && Math.hypot(ev.clientX - drag.x0, ev.clientY - drag.y0) < 8) return;
+        drag.moved = true;
+        e.classList.add('drag');
+        const br = box.getBoundingClientRect();
+        e.style.left = (ev.clientX - br.left - e.offsetWidth / 2) + 'px';
+        e.style.top = (ev.clientY - br.top - e.offsetHeight / 2 - drag.lift) + 'px';
+      });
+      const end = (ev) => {
+        if (!drag || drag.k !== k || drag.id !== ev.pointerId) return;
+        const d = drag;
+        drag = null;
+        e.classList.remove('drag');
+        if (!d.moved) return select(k);
+        const r = e.getBoundingClientRect();
+        const j = ev.type === 'pointercancel' ? -1 : jarAt(r.left + r.width / 2, r.top + r.height / 2);
+        if (j < 0) home(k); else drop(k, j);
+      };
+      e.addEventListener('pointerup', end);
+      e.addEventListener('pointercancel', end);
+    }
+    drawJars();
+    draw();
+    show('s-sort');
+    runTimer('st', it.limit_ms, () => { ended = true; finishGame({ sorted: p.sorted, wrong: p.wrong, ms: p.ms }); });
+    return { stop() { ended = true; drag = null; } };
+  }
+
+  function oddOut(it) {
+    const r = rng(it.seed);
+    const p = loadProgress() || { levels: 0, ms: 0 };
+    let frozenUntil = 0, ended = false;
+    function puzzle(lv) {
+      // Same puzzles for everyone at each level: derive from the seed and the level
+      const rr = rng((it.seed ^ (lv * 2654435761)) >>> 0);
+      const size = Math.min(6, 3 + Math.floor(lv / 2) + (it.level === 2 ? 1 : 0));
+      const odd = Math.floor(rr() * size * size);
+      const mirror = it.level === 1 && lv < 4;
+      const shift = Math.max(it.level === 2 ? 12 : 18, (it.level === 2 ? 40 : 60) - lv * 6);
+      return { size, odd, mirror, shift: rr() < 0.5 ? shift : -shift };
+    }
+    void r;
+    function draw() {
+      const pz = puzzle(p.levels);
+      const grid = $('o-grid');
+      grid.style.gridTemplateColumns = 'repeat(' + pz.size + ', minmax(0, 1fr))';
+      grid.textContent = '';
+      $('o-level').textContent = p.levels;
+      for (let k = 0; k < pz.size * pz.size; k++) {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'cellb';
+        b.setAttribute('aria-label', 'Geeko ' + (k + 1));
+        const isOdd = k === pz.odd;
+        const color = isOdd && !pz.mirror ? 'hsl(' + (88 + pz.shift) + ' 66% 44%)' : 'hsl(88 66% 44%)';
+        b.appendChild(geeko(color, isOdd && pz.mirror ? { transform: 'scaleX(-1)' } : null));
+        b.addEventListener('pointerdown', (e) => { e.preventDefault(); tap(isOdd); });
+        grid.appendChild(b);
+      }
+    }
+    function tap(isOdd) {
+      if (ended || performance.now() < frozenUntil) return;
+      if (isOdd) {
+        p.levels++;
+        p.ms = Math.round(performance.now() - shownAt);
+        saveProgress(p);
+        draw();
+      } else {
+        frozenUntil = performance.now() + 1000;
+        const g = $('o-grid');
+        g.classList.add('frozen', 'shake');
+        setTimeout(() => g.classList.remove('frozen', 'shake'), 1000);
+      }
+    }
+    draw();
+    show('s-odd');
+    runTimer('o', it.limit_ms, () => { ended = true; finishGame({ levels: p.levels, ms: p.ms }); });
+    return { stop() { ended = true; } };
+  }
+
+  // ---------------------------------------------------------------- join / leave
+  $('join-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (joining) return;
+    const name = $('name').value.trim();
+    if (!name) return;
+    joining = true;
+    $('join-btn').disabled = true;
+    send({ t: 'join', name: name });
+    setTimeout(() => { if (joining) { joining = false; $('join-btn').disabled = false; } }, 5000);
+  });
+
+  $('leave').addEventListener('click', () => {
+    const started = state && state.phase !== 'lobby';
+    if (!confirm(started ? 'Leave the game? The game has started, so you cannot join again.'
+      : 'Leave the game? You can join again with any name.')) return;
+    send({ t: 'leave' });
+  });
+
+  connect();
+})();
+</script>
+</body>
+</html>

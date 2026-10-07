@@ -1,0 +1,44 @@
+/* Geeko animations shared by the player and host pages. */
+@keyframes gk-bob { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-10px) rotate(4deg); } }
+@keyframes gk-walk {
+  0% { transform: translateX(0) scaleX(1); }
+  45% { transform: translateX(230px) scaleX(1); }
+  50% { transform: translateX(230px) scaleX(-1); }
+  95% { transform: translateX(0) scaleX(-1); }
+  100% { transform: translateX(0) scaleX(1); }
+}
+@keyframes gk-step { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-4px) rotate(3deg); } }
+@keyframes gk-dance {
+  0%, 100% { transform: rotate(-10deg) translateY(0); }
+  25% { transform: rotate(10deg) translateY(-16px); }
+  50% { transform: rotate(-10deg) translateY(0); }
+  75% { transform: rotate(10deg) translateY(-16px); }
+}
+@keyframes gk-fall {
+  0% { transform: translateY(0) rotate(0); opacity: 1; }
+  25% { transform: translateY(-6px) rotate(-20deg); opacity: 1; }
+  100% { transform: translateY(70px) rotate(220deg); opacity: 0; }
+}
+@keyframes gk-flip {
+  0% { transform: rotate(0) translateY(0); }
+  35% { transform: rotate(200deg) translateY(-20px); }
+  60% { transform: rotate(170deg) translateY(0); }
+  100% { transform: rotate(180deg) translateY(0); }
+}
+@keyframes gk-dizzy { 0%, 100% { transform: rotate(180deg) translateX(0); } 50% { transform: rotate(186deg) translateX(6px); } }
+@keyframes gk-jump {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  12% { transform: translateY(0) scale(1.12, .88); }
+  45% { transform: translateY(-46px) scale(.94, 1.06); }
+  75% { transform: translateY(0) scale(1.06, .94); }
+}
+.gk-bob { animation: gk-bob 2.4s ease-in-out infinite; }
+.gk-walk { animation: gk-walk 6s linear infinite; }
+.gk-step { animation: gk-step .5s ease-in-out infinite; }
+.gk-dance { animation: gk-dance 1s ease-in-out infinite; }
+.gk-fall { animation: gk-fall 1.4s ease-in forwards; filter: hue-rotate(-60deg) saturate(1.6); }
+.gk-flip { animation: gk-flip 1s ease-out forwards, gk-dizzy 1.6s ease-in-out 1s infinite; filter: grayscale(.6); }
+.gk-jump { animation: gk-jump .9s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .gk-bob, .gk-walk, .gk-step, .gk-dance, .gk-fall, .gk-flip, .gk-jump { animation: none; }
+}

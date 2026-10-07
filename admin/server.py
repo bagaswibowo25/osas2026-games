@@ -9,6 +9,10 @@ Admin (HTTP Basic auth, user "admin", password ADMIN_PASSWORD):
   POST /api/scores/reset      clear all leaderboards and players
   GET  /api/players           every signed-in player, chances used, current result
   POST /api/players/allow     {"ig"}: forget a player so they can sign in again
+  GET  /api/standing          {"open"}: may players join Last Geeko Standing (main hall game)?
+  PUT  /api/standing          {"open": true|false}: open or lock it
+  GET  /api/mural             {"open"}: may players join Geeko Pixel Mural (closing)?
+  PUT  /api/mural             {"open": true|false}: open or lock it
 
 Public, reached by the game containers' nginx (/games/<game>/api/* -> /play/*):
   POST /play/register         {"name", "ig"} -> {"name", "plays", "left", "result"}
@@ -100,6 +104,18 @@ def save(game, cfg):
     except BaseException:
         os.unlink(tmp)
         raise
+
+
+# Main hall games that can be opened and locked: API path -> (config file, name for the log)
+LIVE_GAMES = {"/api/standing": ("last-geeko-standing", "Last Geeko Standing"),
+              "/api/mural": ("pixel-mural", "Geeko Pixel Mural")}
+
+
+def live_open(name):
+    try:
+        return bool(json.loads((CONFIG_DIR / f"{name}.json").read_text()).get("open"))
+    except (OSError, ValueError):
+        return False
 
 
 def load_config(game):
@@ -198,6 +214,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._json(200, SCORES.leaderboard(GAMES, limit=500, admin=True))
         if self.path == "/api/players":
             return self._json(200, SCORES.players())
+        if self.path in LIVE_GAMES:
+            return self._json(200, {"open": live_open(LIVE_GAMES[self.path][0])})
         if self.path.startswith("/api/"):
             game = self._game()
             if game:
@@ -262,6 +280,16 @@ class Handler(BaseHTTPRequestHandler):
     def do_PUT(self):
         if not self._authed():
             return
+        if self.path in LIVE_GAMES:
+            body = self._body()
+            if body is None:
+                return
+            if not isinstance(body.get("open"), bool):
+                return self._json(400, {"error": "open must be true or false"})
+            file, label = LIVE_GAMES[self.path]
+            save(file, {"open": body["open"]})
+            self.log_message("%s %s", label, "opened" if body["open"] else "locked")
+            return self._json(200, {"open": body["open"]})
         game = self._game()
         if not game:
             return

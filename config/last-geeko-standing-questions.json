@@ -1,0 +1,45 @@
+{
+  "intro_seconds": 30,
+  "reveal_seconds": 4,
+  "rounds": [
+    {
+      "title": "Round 1", "type": "quiz", "seconds": 12, "keep": 0.5,
+      "questions": [
+        { "text": "You can download openSUSE images from get.opensuse.org.", "answer": true },
+        { "text": "The new installer in Leap 16 is called YaST.", "answer": false },
+        { "text": "Btrfs is the default filesystem in openSUSE.", "answer": true }
+      ]
+    },
+    { "title": "Round 2: Game time", "type": "games", "level": 1, "keep": 0.5, "games": ["color", "reflex", "sort"] },
+    {
+      "title": "Round 3", "type": "quiz", "seconds": 10, "keep": 0.4,
+      "questions": [
+        { "text": "openSUSE Aeon uses KDE Plasma by default.", "answer": false },
+        { "text": "Slowroll is a Tumbleweed variant with updates in tested batches.", "answer": true },
+        { "text": "The first openSUSE.Asia Summit was held in Taipei.", "answer": false }
+      ]
+    },
+    { "title": "Round 4: Game time, new games", "type": "games", "level": 2, "keep": 10, "games": ["bug", "simon", "dash"] },
+    {
+      "title": "Final", "type": "quiz", "seconds": 8, "keep": 5,
+      "questions": [
+        { "text": "Myrlyn is the new package manager GUI replacing YaST.", "answer": true },
+        { "text": "The installer of openSUSE Aeon is called Agama.", "answer": false },
+        { "text": "Leap Micro is the only openSUSE immutable distro with point releases.", "answer": true }
+      ]
+    }
+  ],
+  "spare_questions": [
+    { "text": "openSUSE bugs should be reported on GitHub Issues.", "answer": false },
+    { "text": "You can play Windows games on openSUSE with Steam.", "answer": true },
+    { "text": "The openSUSE infrastructure team is called the openSUSE Heroes.", "answer": true },
+    { "text": "The 2019 openSUSE.Asia Summit was held in Jakarta.", "answer": false },
+    { "text": "The openSUSE project was founded at a conference in Nuremberg.", "answer": false },
+    { "text": "You can stay on Leap 16 only until 2028.", "answer": false },
+    { "text": "`snapper list` shows your system snapshots.", "answer": true },
+    { "text": "Vietnam has hosted an openSUSE.Asia Summit.", "answer": false },
+    { "text": "Tokyo hosted the openSUSE.Asia Summit in 2017 and 2024.", "answer": true },
+    { "text": "Summit logos are picked through a community design contest.", "answer": true },
+    { "text": "The default shell in openSUSE is zsh.", "answer": false }
+  ]
+}

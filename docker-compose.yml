@@ -8,6 +8,8 @@ name: osas2026-games
 #   /games/distro  -> games-distro:80
 #   /games/command -> games-command:80
 #   /games/admin   -> games-admin:8080  (prize settings, password in .env)
+#   /games/last-geeko-standing -> games-standing:8080 (main hall live game, not on the hub)
+#   /games/pixel-mural         -> games-mural:8080 (closing: paint one mural together, not on the hub)
 # See deploy/Caddyfile.snippet.
 
 x-game: &game
@@ -63,6 +65,44 @@ services:
       - ./data:/data        # scores.db (leaderboard)
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  standing:
+    build: { context: ., dockerfile: standing/Dockerfile }
+    image: osas2026-games/standing
+    container_name: games-standing
+    restart: always
+    networks: [classquiz]
+    user: "1000:1000"
+    environment:
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      PUBLIC_URL: https://quiz.opensuse.id/games/last-geeko-standing/
+    volumes:
+      - ./config:/config:ro  # questions + the open/locked switch written by games-admin
+      - ./data:/data         # last-geeko-standing.json: game snapshot, survives a restart
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz')"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  mural:
+    build: { context: ., dockerfile: mural/Dockerfile }
+    image: osas2026-games/mural
+    container_name: games-mural
+    restart: always
+    networks: [classquiz]
+    user: "1000:1000"
+    environment:
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      PUBLIC_URL: https://quiz.opensuse.id/games/pixel-mural/
+    volumes:
+      - ./config:/config:ro  # the open/locked switch written by games-admin (+ optional settings)
+      - ./data:/data         # pixel-mural.json: the wall, survives a restart
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz')"]
       interval: 30s
       timeout: 3s
       retries: 3

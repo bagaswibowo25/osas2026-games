@@ -4,6 +4,8 @@
 	redir /games/distro /games/distro/ 308
 	redir /games/command /games/command/ 308
 	redir /games/admin /games/admin/ 308
+	redir /games/last-geeko-standing /games/last-geeko-standing/ 308
+	redir /games/pixel-mural /games/pixel-mural/ 308
 	handle_path /games/memory/* {
 		reverse_proxy games-memory:80
 	}
@@ -15,6 +17,12 @@
 	}
 	handle_path /games/admin/* {
 		reverse_proxy games-admin:8080
+	}
+	handle_path /games/last-geeko-standing/* {
+		reverse_proxy games-standing:8080
+	}
+	handle_path /games/pixel-mural/* {
+		reverse_proxy games-mural:8080
 	}
 	# Game picker; Caddy sorts handle_path by path length, so the routes above win
 	handle_path /games/* {

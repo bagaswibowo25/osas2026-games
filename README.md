@@ -105,6 +105,70 @@ Contoh: tambah hadiah kaos untuk ≥15 benar di Command or Not:
   jadi tidak perlu route Caddy tambahan. Pendaftaran dan jatah kesempatan dicek di server, jadi game **butuh**
   container admin hidup (kalau mati, tombol Start menampilkan pesan error).
 
+## Last Geeko Standing (main hall)
+
+Game live untuk penutupan di main hall, **terpisah** dari 3 game booth (tidak muncul di `/games/`).
+Container `games-standing` (Python aiohttp + WebSocket), kode di `standing/`.
+
+| Untuk | URL |
+|---|---|
+| Peserta (QR di layar host) | https://quiz.opensuse.id/games/last-geeko-standing/ |
+| Host / proyektor | https://quiz.opensuse.id/games/last-geeko-standing/host (password = `ADMIN_PASSWORD`) |
+| Buka / kunci join | bagian **Last Geeko Standing** di `/games/admin/` |
+
+- Selama **Locked**, peserta tidak bisa join (pesan "not open yet"). Peserta yang sudah di dalam tidak terpengaruh.
+- 5 putaran x 3 item. Putaran kuis: soal benar/salah (benar = 500 + bonus kecepatan sampai 500).
+  Putaran game (poin menurut peringkat, 1000 untuk yang terbaik): putaran 2 Color Rush, Reflex (tap Geeko hijau yang berkedip, hindari Geeko merah/oranye), Geeko Sort (drag Geeko ke toples sewarna);
+  putaran 4 Bug Squash, Geeko Simon, Geeko Dash.
+  Item dalam satu putaran berjalan otomatis; di akhir putaran yang lolos hanya peringkat teratas
+  (`keep`: `0.5` = 50%, `10` = 10 orang), lalu host menekan **Next round**. Final menyisakan 5 orang,
+  diumumkan satu per satu dari #5 ke #1 setelah **Reveal winners**, dengan confetti (`standing/static/confetti.js`). Skor dihitung per putaran.
+- Putaran, soal, waktu, dan `keep` ada di `config/last-geeko-standing-questions.json` (`spare_questions` = cadangan).
+  Berlaku saat **Start game** berikutnya.
+- Refresh browser aman (sesi di `localStorage`, progres mini game di `sessionStorage`); tombol **Leave game**
+  untuk keluar. Join setelah game mulai ditolak. Restart container melanjutkan game dari `data/last-geeko-standing.json`.
+- Musik dan efek suara hanya dari layar host: sambungkan laptop host ke speaker. Semua loop orisinal (CC0).
+  Tombol **Style** di layar host memilih gaya musik (tersimpan di browser host):
+  - **Congdut** (default, `standing/music/congdut.py`): keroncong + kendang dangdut koplo dan suling;
+    *Congdut Koplo* (132 BPM) saat soal dan mini game, *Congdut Santai* (108 BPM) di lobby, hasil, antar putaran.
+  - **Keroncong** (`standing/music/keroncong.py`): *Keroncong Rancak* (134 BPM) saat soal dan mini game,
+    *Langgam Senja* (108 BPM) di lobby, hasil, dan antar putaran.
+  - **Funk** (`standing/music/compose.py`): *Jogja Funk* (120 BPM) dan *Desa Riang* (104 BPM).
+- Setiap Start game dan Next round diawali hitung mundur **3, 2, 1, START!** (animasi di proyektor dan HP, suara di host;
+  host bisa **Skip**). Background halaman: `standing/static/bg.png`.
+- Penjelasan tiap mini game tampil `intro_seconds` (30 detik) sebelum game mulai; host bisa **Skip**.
+- **Tes dengan bot** (`standing/bots.py`, butuh `pip install aiohttp`). Buka game di admin, jalankan bot,
+  join dari HP, lalu Start. Bot join ulang otomatis setelah **Reset**; hentikan dengan Ctrl-C.
+  Bot tidak benar-benar memainkan mini game, hanya mengirim skor yang wajar.
+
+  ```bash
+  python standing/bots.py 200                  # 200 bot, skill normal
+  python standing/bots.py 200 --skill weak     # bot sengaja kalah, supaya Anda bisa sampai final
+  python standing/bots.py 50 --start 200       # tambahan 50 bot dengan nama lain
+  ```
+
+## Geeko Pixel Mural (penutupan)
+
+Semua peserta mewarnai satu mural piksel bersama dari HP. Terpisah dari game booth (tidak muncul di `/games/`).
+Container `games-mural`, kode di `mural/` (memakai ulang Geeko, background, musik, efek suara, dan confetti
+dari `standing/static/`).
+
+| Untuk | URL |
+|---|---|
+| Peserta (QR di layar host) | https://quiz.opensuse.id/games/pixel-mural/ |
+| Host / proyektor | https://quiz.opensuse.id/games/pixel-mural/host (password = `ADMIN_PASSWORD`) |
+| Buka / kunci join | bagian **Geeko Pixel Mural** di `/games/admin/` |
+
+- Dinding 96 x 54 piksel dengan pola samar: **OPENSUSE.ASIA / SUMMIT 2026 / YOGYAKARTA** di atas batik kawung.
+  Pola dibuat di `mural/server.py` (`build_target`).
+- Tiap peserta dapat sektor 12 x 9 (A1 sampai F8). Pilih warna, tap kotak samar; satu piksel tiap `cooldown` detik.
+  Piksel yang sudah benar tidak bisa ditimpa. Sektor selesai: pemainnya otomatis dipindah ke sektor yang paling butuh bantuan.
+  Peserta boleh join di tengah sesi (selama tidak dikunci).
+- Host: **Start painting** (hitung mundur 3, 2, 1, PAINT!), **Finish now**, **Reset mural**. Saat waktu habis, piksel
+  yang belum selesai terisi otomatis, mural utuh tampil dengan confetti dan daftar pelukis teraktif.
+- Durasi dan cooldown: `config/pixel-mural-settings.json` `{"seconds": 180, "cooldown": 3}` (opsional; berlaku saat Start).
+- Tes dengan bot: `python mural/bots.py 150` (opsi `--accuracy 0.85`, `--start`, `--url`).
+
 ## Coba lokal
 
 ```bash

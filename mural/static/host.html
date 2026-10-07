@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geeko Pixel Mural · Host</title>
+<link rel="icon" href="static/geeko.svg">
+<link rel="stylesheet" href="static/shared/base.css">
+<link rel="stylesheet" href="static/geeko.css">
+<script src="static/sound.js"></script>
+<script src="static/confetti.js"></script>
+<style>
+body { background: #0d2731 url(static/bg.png) center bottom / cover no-repeat; overflow: hidden; user-select: none; }
+.stage { position: fixed; inset: 0; padding: 3vh 3.4vw 11vh; display: flex; flex-direction: column; gap: 2vh; }
+body.bare .stage { padding-bottom: 4vh; }
+.head { display: flex; justify-content: space-between; align-items: center; gap: 2vw; min-height: 6vh; }
+.brand { display: flex; align-items: center; gap: 1vw; font-weight: 800; font-size: 2.2vh; color: var(--green); letter-spacing: .04em; }
+.sub { font-size: 2.2vh; color: #c9a24a; font-weight: 800; letter-spacing: .06em; }
+.view { flex: 1; min-height: 0; display: flex; gap: 2.6vw; }
+.wallbox { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; position: relative; }
+canvas.wall { display: block; border-radius: 1.2vh; box-shadow: 0 1.4vh 4vh rgba(0,0,0,.45); background: #06161c; }
+.side { flex: 0 0 23vw; display: flex; flex-direction: column; gap: 1.6vh; justify-content: center; min-width: 0; min-height: 0; overflow: hidden; }
+.label { font-size: 2.2vh; color: var(--muted); }
+.time { font-size: 8vh; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.time.low { color: #f2a65a; }
+.pct { font-size: 7vh; font-weight: 800; line-height: 1; color: var(--green); font-variant-numeric: tabular-nums; }
+.prog { height: 1.4vh; border-radius: 1vh; background: #173f4f; overflow: hidden; }
+.prog i { display: block; height: 100%; background: var(--green); transform-origin: left; transition: transform .3s; }
+.mid { font-size: 3.2vh; } .mid b { font-size: 4.4vh; }
+.qr img { width: 100%; max-width: 18vh; border-radius: 1.4vh; background: #fff; display: block; }
+.qr span { font-size: 1.9vh; color: var(--muted); display: block; margin-top: .6vh; word-break: break-all; }
+.feed { display: flex; flex-direction: column; gap: .7vh; }
+.feed div { display: flex; align-items: center; gap: .8vw; font-size: 2.2vh; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feed i { width: 2.2vh; height: 2.2vh; border-radius: .5vh; flex: none; border: 1px solid rgba(255,255,255,.3); }
+.feed .no { opacity: .55; text-decoration: line-through; }
+@keyframes pop { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+/* lobby */
+.lobby-side h1 { font-size: 6.4vh; line-height: 1.02; color: var(--green); margin: 0; }
+.lobby-side ol { margin: 0; padding-left: 3vh; font-size: 2.6vh; line-height: 1.4; color: #d5e6ec; }
+.joined { font-size: 3.4vh; } .joined b { font-size: 7vh; color: #fff; }
+.locked { padding: 1.2vh 1.4vw; border-radius: 1.4vh; background: #4a3410; color: #ffe2a8; font-size: 2.3vh; }
+.chips { display: flex; flex-wrap: wrap; gap: .6vh; max-height: 12vh; overflow: hidden; }
+.chip { padding: .4vh 1vw; border-radius: 999px; background: #173f4f; border: 0; color: #fff; font-size: 1.9vh; }
+.chip:hover { background: #5b2a14; text-decoration: line-through; }
+/* countdown */
+.cd { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.cd-num { font-size: 34vh; font-weight: 900; line-height: 1; color: var(--cd, #fff); text-shadow: 0 1.6vh 0 rgba(0,0,0,.35); }
+.cd-num.go { animation: cd-pop .9s cubic-bezier(.2,1.6,.4,1) both; }
+.cd-num.start { font-size: 22vh; animation: cd-pop 1.2s cubic-bezier(.2,1.6,.4,1) both; }
+@keyframes cd-pop { 0% { transform: scale(2.6) rotate(-8deg); opacity: 0; } 35% { opacity: 1; } 100% { transform: scale(1) rotate(-2deg); opacity: 1; } }
+/* finale */
+.final { position: absolute; left: 50%; bottom: -1vh; transform: translate(-50%, 0); background: rgba(7, 24, 32, .9); border-radius: 2vh; padding: 1.6vh 2.4vw; text-align: center; animation: pop .6s ease-out both; white-space: nowrap; }
+.final h2 { margin: 0; font-size: 4.6vh; color: var(--green); }
+.final p { margin: .4vh 0 0; font-size: 2.6vh; }
+.top { display: flex; flex-direction: column; gap: .8vh; }
+.top div { display: flex; gap: 1vw; align-items: center; padding: .8vh 1vw; border-radius: 1.2vh; background: #173f4f; font-size: 2.4vh; animation: pop .45s ease-out both; }
+.top b { color: #c9a24a; width: 3vh; }
+.top span { flex: 1; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top em { font-style: normal; color: var(--muted); }
+/* controls */
+.controls { position: fixed; left: 0; right: 0; bottom: 0; padding: 1.2vh 2vw; background: rgba(7, 24, 32, .92); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+body.bare .controls { display: none; }
+.controls button { height: 44px; padding: 0 18px; border-radius: 22px; font-weight: 700; font-size: 16px; border: 2px solid #3b5f6c; background: transparent; color: #fff; }
+.controls button.go { background: var(--green); border-color: var(--green); color: var(--ink); }
+.controls button.danger { border-color: #f2a65a; color: #f2a65a; }
+.controls .spacer { flex: 1; }
+.controls .status { color: var(--muted); font-size: 14px; }
+.show-ctl { position: fixed; right: 12px; bottom: 12px; opacity: .25; height: 36px; border-radius: 18px; border: 1px solid #3b5f6c; background: transparent; color: #fff; padding: 0 14px; display: none; }
+body.bare .show-ctl { display: block; }
+.login { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #0d2731; z-index: 10; }
+.login form { display: flex; flex-direction: column; gap: 12px; width: min(420px, 90vw); }
+.login input { font: inherit; font-size: 20px; height: 56px; padding: 0 16px; border-radius: 12px; border: 2px solid var(--teal); background: #0b2a35; color: #fff; user-select: text; }
+.login button { height: 56px; border-radius: 28px; border: 0; background: var(--green); color: var(--ink); font-size: 20px; font-weight: 800; }
+.login .err { color: var(--warn); min-height: 1.2em; }
+@media (prefers-reduced-motion: reduce) { .cd-num.go, .cd-num.start, .feed div, .top div { animation: none; } }
+</style>
+</head>
+<body>
+<div class="login" id="login">
+  <form id="login-form">
+    <img src="static/geeko.svg" alt="" width="110" height="71" style="align-self:center" class="gk-bob">
+    <h1 style="margin:0;text-align:center">Geeko Pixel Mural</h1>
+    <label for="pw">Host password (same as /games/admin)</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <button type="submit">Open host screen</button>
+    <div class="err" id="login-err" role="alert"></div>
+  </form>
+</div>
+
+<main class="stage">
+  <div class="head">
+    <div class="brand"><img src="static/geeko.svg" alt="" style="height:3.6vh">GEEKO PIXEL MURAL</div>
+    <div class="sub">OPENSUSE.ASIA SUMMIT 2026 · YOGYAKARTA</div>
+  </div>
+  <div class="view">
+    <div class="wallbox" id="wallbox">
+      <canvas class="wall" id="wall" aria-label="The mural"></canvas>
+      <div class="cd" id="cd" hidden><div class="cd-num" id="cd-num"></div></div>
+      <div class="final" id="final" hidden><h2 id="final-title"></h2><p id="final-sub"></p></div>
+    </div>
+    <div class="side" id="side-lobby" hidden>
+      <div class="lobby-side">
+        <h1>Paint it<br>together!</h1>
+      </div>
+      <ol class="lobby-side">
+        <li>Scan, type your name, get a sector.</li>
+        <li>Pick a colour, tap a faint square.</li>
+        <li>One pixel every few seconds.</li>
+      </ol>
+      <div class="qr"><img src="qr.svg" alt="QR code to join"><span id="url"></span></div>
+      <div class="joined"><b id="joined">0</b> painters</div>
+      <div class="locked" id="locked" hidden>Locked: open the mural in /games/admin first.</div>
+      <div class="chips" id="chips" title="Click a name to remove that player"></div>
+    </div>
+    <div class="side" id="side-paint" hidden>
+      <div><div class="label">Time left</div><div class="time" id="time">0:00</div></div>
+      <div><div class="label">Mural done</div><div class="pct"><span id="pct">0</span>%</div></div>
+      <div class="prog"><i id="prog"></i></div>
+      <div class="mid"><b id="painters">0</b> of <span id="players">0</span> painting</div>
+      <div class="qr" style="display:flex;gap:1vw;align-items:center"><img src="qr.svg" alt="QR code to join" style="max-width:13vh"><span>Join late?<br>Scan!</span></div>
+      <div><div class="label">Just painted</div><div class="feed" id="feed"></div></div>
+    </div>
+    <div class="side" id="side-done" hidden>
+      <div><div class="label">Painted by the crowd</div><div class="pct"><span id="done-pct">0</span>%</div></div>
+      <div class="mid"><b id="done-paints">0</b> pixels by <b id="done-players">0</b> Geeko</div>
+      <div><div class="label">Top painters</div><div class="top" id="top"></div></div>
+    </div>
+  </div>
+</main>
+
+<div class="controls">
+  <button type="button" class="go" id="c-start">Start painting</button>
+  <button type="button" id="c-finish">Finish now</button>
+  <span class="spacer"></span>
+  <span class="status" id="status"></span>
+  <button type="button" id="c-fx">Sound: on</button>
+  <button type="button" id="c-music">Music: on</button>
+  <button type="button" id="c-style" title="Switch music style">Style</button>
+  <button type="button" id="c-hide" title="Hide controls (H)">Hide controls</button>
+  <button type="button" class="danger" id="c-reset">Reset mural</button>
+</div>
+<button type="button" class="show-ctl" id="c-show">Controls (H)</button>
+
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const PW = 'mural_host_pw';
+  const MUSIC = { lobby: 'calm', countdown: null, paint: 'quiz', done: 'calm' };
+  let ws = null, s = null, retry = 0, wall = [], target = '', tick = null, localEnd = 0, cdStep = -1, lastPhase = '';
+  let cell = 8, flashes = new Map(), raf = 0, revealing = false;
+
+  function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+  function cmd(c, extra) { send(Object.assign({ t: 'cmd', cmd: c }, extra || {})); }
+  function connect() {
+    ws = new WebSocket(new URL('ws', location.href.replace(/^http/, 'ws')).href);
+    ws.onopen = () => { retry = 0; const pw = sessionStorage.getItem(PW); if (pw) send({ t: 'host', password: pw }); };
+    ws.onmessage = (e) => handle(JSON.parse(e.data));
+    ws.onclose = () => { $('status').textContent = 'Reconnecting…'; setTimeout(connect, Math.min(5000, 500 * 2 ** retry++)); };
+  }
+  function handle(m) {
+    if (m.t === 'host_ok') { $('login').hidden = true; return; }
+    if (m.t === 'host_denied') { sessionStorage.removeItem(PW); $('login').hidden = false; $('login-err').textContent = 'Wrong password.'; return; }
+    if (m.t === 'host_state') return render(m);
+    if (m.t === 'stats' && s) { s.players = m.players; s.open = m.open; s.who = m.who; status(); if (s.phase === 'lobby') lobby(); else $('players').textContent = m.players; return; }
+    if (m.t === 'px' && s) {
+      const now = performance.now();
+      m.d.forEach(([i, c]) => { wall[i] = c; flashes.set(i, now); });
+      s.pct = m.pct; s.feed = m.feed; s.painters = m.painters;
+      side(); kick();
+    }
+  }
+  function status() { $('status').textContent = s ? (s.open ? 'Joining: OPEN' : 'Joining: LOCKED') + ' · ' + s.players + ' players' : ''; }
+  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; }
+
+  function render(m) {
+    const fresh = m.phase !== lastPhase || (s && s.game_id !== m.game_id);
+    lastPhase = m.phase;
+    s = m; wall = m.wall.split(''); target = m.target;
+    status();
+    $('c-start').hidden = m.phase !== 'lobby';
+    $('c-finish').hidden = m.phase !== 'paint';
+    $('side-lobby').hidden = m.phase !== 'lobby';
+    $('side-paint').hidden = m.phase !== 'paint' && m.phase !== 'countdown';
+    $('side-done').hidden = m.phase !== 'done';
+    $('cd').hidden = m.phase !== 'countdown';
+    $('final').hidden = true;
+    Sound.music(MUSIC[m.phase]);
+    clearInterval(tick); tick = null;
+    revealing = false;
+    if (m.phase === 'lobby') lobby();
+    if (m.phase === 'countdown' || m.phase === 'paint') {
+      localEnd = performance.now() + m.ends_in_ms;
+      cdStep = -1;
+      tick = setInterval(timers, 50); timers();
+      side();
+    }
+    if (m.phase === 'done') done(fresh);
+    layout();
+  }
+
+  function lobby() {
+    $('joined').textContent = s.players;
+    $('url').textContent = s.url.replace(/^https?:\/\//, '');
+    $('locked').hidden = s.open;
+    const box = $('chips');
+    box.textContent = '';
+    s.who.slice().reverse().forEach((name) => {
+      const b = el('button', 'chip', name);
+      b.type = 'button';
+      b.addEventListener('click', () => { if (confirm('Remove "' + name + '"?')) cmd('kick', { name }); });
+      box.appendChild(b);
+    });
+  }
+
+  function timers() {
+    const rem = Math.max(0, localEnd - performance.now());
+    if (s.phase === 'countdown') {
+      const step = Math.min(3, Math.floor((s.total_ms - rem) / 1000));
+      if (step !== cdStep && step >= 0) {
+        cdStep = step;
+        const num = $('cd-num');
+        num.className = 'cd-num'; void num.offsetWidth;
+        num.style.setProperty('--cd', ['#21a4df', '#f5c400', '#f2a65a', '#73ba25'][step]);
+        num.textContent = step < 3 ? 3 - step : 'PAINT!';
+        num.classList.add(step < 3 ? 'go' : 'start');
+        step < 3 ? Sound.count(step) : Sound.go();
+      }
+      $('time').textContent = Math.floor(s.settings.seconds / 60) + ':' + String(s.settings.seconds % 60).padStart(2, '0');
+      return;
+    }
+    const sec = Math.ceil(rem / 1000);
+    $('time').textContent = Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+    $('time').classList.toggle('low', rem < 15000);
+  }
+
+  function side() {
+    $('pct').textContent = s.pct;
+    $('prog').style.transform = 'scaleX(' + s.pct / 100 + ')';
+    $('painters').textContent = s.painters;
+    $('players').textContent = s.players;
+    const feed = $('feed');
+    feed.textContent = '';
+    (s.feed || []).slice().reverse().forEach((f) => {
+      const d = el('div');
+      const sw = el('i'); sw.style.background = s.palette[f.c];
+      const t = el('span', f.ok ? '' : 'no', f.who + ' · ' + f.sector);
+      d.append(sw, t);
+      feed.appendChild(d);
+    });
+  }
+
+  // ----- the wall ------------------------------------------------------------
+  function layout() {
+    const box = $('wallbox'), cv = $('wall');
+    if (!s) return;
+    cell = Math.max(2, Math.floor(Math.min(box.clientWidth / s.w, box.clientHeight / s.h)));
+    const d = window.devicePixelRatio || 1;
+    cv.style.width = cell * s.w + 'px'; cv.style.height = cell * s.h + 'px';
+    cv.width = cell * s.w * d; cv.height = cell * s.h * d;
+    cv.getContext('2d').setTransform(d, 0, 0, d, 0, 0);
+    draw();
+  }
+  function mix(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return 'rgb(' + Math.round((n >> 16) * a + 6 * (1 - a)) + ',' + Math.round(((n >> 8) & 255) * a + 22 * (1 - a)) + ',' + Math.round((n & 255) * a + 28 * (1 - a)) + ')';
+  }
+  function draw() {
+    const ctx = $('wall').getContext('2d'), now = performance.now(), g = cell >= 6 ? 1 : 0;
+    ctx.fillStyle = '#06161c';
+    ctx.fillRect(0, 0, cell * s.w, cell * s.h);
+    const finished = s.phase === 'done' && !revealing;
+    for (let i = 0; i < s.w * s.h; i++) {
+      const x = (i % s.w) * cell, y = Math.floor(i / s.w) * cell;
+      const c = finished ? target[i] : wall[i];
+      ctx.fillStyle = c === '.' ? mix(s.palette[target[i]], 0.24) : s.palette[c];
+      ctx.fillRect(x, y, cell - g, cell - g);
+      const f = flashes.get(i);
+      if (f !== undefined) {
+        const k = (now - f) / 500;
+        if (k >= 1) flashes.delete(i);
+        else { ctx.fillStyle = 'rgba(255,255,255,' + (1 - k) * 0.85 + ')'; ctx.fillRect(x - cell * (1 - k) * 0.4, y - cell * (1 - k) * 0.4, cell * (1 + (1 - k) * 0.8), cell * (1 + (1 - k) * 0.8)); }
+      }
+    }
+    if (s.phase !== 'done') {
+      // sector grid and names, so players find their sector
+      ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 1;
+      ctx.font = '700 ' + Math.max(9, cell * 1.6) + 'px "Source Sans 3", sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,.5)';
+      for (let r = 0; r < s.h / s.sh; r++) for (let c = 0; c < s.w / s.sw; c++) {
+        ctx.strokeRect(c * s.sw * cell + 0.5, r * s.sh * cell + 0.5, s.sw * cell - 1, s.sh * cell - 1);
+        ctx.fillText('ABCDEF'[r] + (c + 1), c * s.sw * cell + cell * 0.4, r * s.sh * cell + cell * 1.8);
+      }
+    }
+  }
+  function kick() {
+    if (raf) return;
+    const loop = () => { draw(); raf = flashes.size || revealing ? requestAnimationFrame(loop) : 0; };
+    raf = requestAnimationFrame(loop);
+  }
+
+  // ----- the finale: fill in what is left, then show the result -------------------------------
+  function done(fresh) {
+    const left = [];
+    for (let i = 0; i < s.w * s.h; i++) if (wall[i] !== target[i]) left.push(i);
+    $('done-pct').textContent = s.pct;
+    $('done-paints').textContent = s.paints;
+    $('done-players').textContent = s.players;
+    const top = $('top');
+    top.textContent = '';
+    (s.top || []).forEach((p, k) => {
+      const d = el('div'); d.style.animationDelay = (fresh ? 4.4 : 0) + k * 0.12 + 's';
+      d.append(el('b', '', k + 1), el('span', '', p.name), el('em', '', p.matched + ' px'));
+      top.appendChild(d);
+    });
+    const finish = () => {
+      revealing = false; draw();
+      $('final-title').textContent = 'Painted together by ' + s.players + ' Geeko!';
+      $('final-sub').textContent = 'openSUSE.Asia Summit 2026 · Yogyakarta · thank you!';
+      $('final').hidden = false;
+      if (fresh) { Sound.fanfare(); Confetti.cannons(180); Confetti.rain(9000); }
+    };
+    if (!fresh || !left.length) return finish();
+    // Sweep: the missing pixels drop in from left to right over 4 seconds
+    revealing = true;
+    Sound.roll();
+    left.sort((a, b) => (a % s.w) - (b % s.w) + (Math.random() - 0.5) * 8);
+    const start = performance.now(), dur = 4000;
+    let k = 0;
+    const step = () => {
+      const now = performance.now(), upto = Math.floor(left.length * Math.min(1, (now - start) / dur));
+      for (; k < upto; k++) { wall[left[k]] = target[left[k]]; flashes.set(left[k], now); }
+      if (upto < left.length) { requestAnimationFrame(step); return; }
+      setTimeout(finish, 400);
+    };
+    requestAnimationFrame(step);
+    kick();
+  }
+
+  // ----- controls -----------------------------------------------------------
+  $('login-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    sessionStorage.setItem(PW, $('pw').value);
+    Sound.unlock();
+    send({ t: 'host', password: $('pw').value });
+  });
+  $('c-start').onclick = () => { Sound.unlock(); cmd('start'); };
+  $('c-finish').onclick = () => { if (confirm('Finish painting now?')) cmd('finish'); };
+  $('c-reset').onclick = () => { if (confirm('Reset the mural? All pixels and players are removed.')) cmd('reset'); };
+  function fxLabel() { $('c-fx').textContent = 'Sound: ' + (Sound.fxMuted() ? 'off' : 'on'); }
+  function musicLabel() { $('c-music').textContent = 'Music: ' + (Sound.musicMuted() ? 'off' : 'on'); }
+  $('c-fx').onclick = () => { Sound.setFxMuted(!Sound.fxMuted()); fxLabel(); };
+  $('c-music').onclick = () => { Sound.unlock(); Sound.setMusicMuted(!Sound.musicMuted()); musicLabel(); };
+  $('c-style').onclick = () => { Sound.unlock(); $('c-style').textContent = 'Style: ' + Sound.nextStyle(); };
+  const toggleBare = () => { document.body.classList.toggle('bare'); setTimeout(layout, 50); };
+  $('c-hide').onclick = toggleBare; $('c-show').onclick = toggleBare;
+  document.addEventListener('keydown', (e) => { if ((e.key === 'h' || e.key === 'H') && e.target.tagName !== 'INPUT') toggleBare(); });
+  document.addEventListener('pointerdown', () => Sound.unlock(), { once: true });
+  addEventListener('resize', layout);
+  fxLabel(); musicLabel(); $('c-style').textContent = 'Style: ' + Sound.styleLabel();
+  if (sessionStorage.getItem(PW)) $('login').hidden = true;
+  connect();
+})();
+</script>
+</body>
+</html>
